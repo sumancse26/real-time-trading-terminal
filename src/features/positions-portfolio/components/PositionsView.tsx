@@ -23,6 +23,7 @@ import {
 } from '@/utils/formatters'
 import type { OrderStatus } from '@/types/order'
 import type { Position } from '@/types/position'
+import { VirtualizedOrderArchive } from './VirtualizedOrderArchive'
 import {
   Wallet,
   Briefcase,
@@ -31,6 +32,7 @@ import {
   RotateCcw,
   AlertCircle,
   Clock,
+  Database,
 } from 'lucide-react'
 
 export interface PositionRowProps {
@@ -115,7 +117,7 @@ export const PositionRow: React.FC<PositionRowProps> = memo(({ position, isClosi
 PositionRow.displayName = 'PositionRow'
 
 export const PositionsView: React.FC = () => {
-  const [tab, setTab] = useState<'positions' | 'orders' | 'history'>('positions')
+  const [tab, setTab] = useState<'positions' | 'orders' | 'history' | 'archive'>('positions')
 
   const {
     data: positions = [],
@@ -203,6 +205,15 @@ export const PositionsView: React.FC = () => {
           >
             <History size={13} className="mr-1 inline" />
             ORDER HISTORY ({orderHistory.length})
+          </button>
+          <button
+            type="button"
+            className={`portfolio-tab-btn ${tab === 'archive' ? 'active text-cyan-accent' : ''}`}
+            onClick={() => setTab('archive')}
+            data-testid="tab-archive"
+          >
+            <Database size={13} className="mr-1 inline text-cyan-accent" />
+            100K ARCHIVE (100,000)
           </button>
         </div>
       }
@@ -467,6 +478,8 @@ export const PositionsView: React.FC = () => {
             )}
           </div>
         )}
+
+        {tab === 'archive' && <VirtualizedOrderArchive />}
       </div>
     </Card>
   )

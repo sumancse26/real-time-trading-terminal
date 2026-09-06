@@ -1441,3 +1441,158 @@ input[type='number'],
 
   .telemetry-metrics { gap: 10px; }
 }
+
+/* ─── Virtualized 100K Orders Archive ───────────────────────────── */
+.virtual-archive-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.virtual-telemetry-hud {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: #090d16;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.6875rem;
+}
+
+.telemetry-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stat-label {
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+
+.virtual-controls-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.virtual-search-box {
+  position: relative;
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  align-items: center;
+}
+
+.virtual-search-box .search-icon {
+  position: absolute;
+  left: 8px;
+  pointer-events: none;
+}
+
+.virtual-search-input {
+  width: 100%;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 0.6875rem;
+  padding: 5px 26px 5px 26px;
+  border-radius: 4px;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+
+.virtual-search-input:focus {
+  border-color: var(--border-focus);
+  outline: none;
+}
+
+.clear-search-btn {
+  position: absolute;
+  right: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  cursor: pointer;
+}
+
+.virtual-select {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.virtual-select:focus {
+  border-color: var(--border-focus);
+  outline: none;
+}
+
+.virtual-jump-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.virtual-table-header {
+  display: grid;
+  grid-template-columns: 120px 90px 100px 70px 80px 110px 100px 100px 90px;
+  background: var(--bg-card);
+  padding: 6px 12px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.virtual-table-header .sortable {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  user-select: none;
+  transition: color 0.12s;
+}
+
+.virtual-table-header .sortable:hover {
+  color: var(--text-primary);
+}
+
+.virtual-scroll-viewport {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+}
+
+.virtual-order-row {
+  display: grid;
+  grid-template-columns: 120px 90px 100px 70px 80px 110px 100px 100px 90px;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 0.6875rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  transition: background-color 0.1s;
+}
+
+.virtual-order-row:hover {
+  background-color: var(--bg-hover);
+}
+
+.virtual-empty-state {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
