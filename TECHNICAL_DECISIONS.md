@@ -140,3 +140,47 @@
 - Prevents circular dependency cycles between order, position, and market models.
 - Allows fine-grained imports for bundle tree-shaking as well as convenient barrel imports.
 
+---
+
+# Phase 3 — Technical Decisions
+
+## TD-013 — Normalized Market State in Zustand
+
+**Decision**: Store all market tickers in a normalized dictionary (`entities: Record<string, MarketTicker>`) with a separate ordered symbol key array (`symbols: string[]`).
+
+**Rationale**:
+- Enables `O(1)` ticker lookup and pinpoint in-place updates when high-frequency WebSocket ticks arrive.
+- Prevents full array rebuilds and full list re-renders on every individual price tick.
+- Symbol ordering is preserved in `symbols` for deterministic list rendering, independent of hash map key iteration order.
+
+---
+
+## TD-014 — Render-Aware Fine-Grained Subscriptions & React 19 Snapshot Safety
+
+**Decision**: UI components access Zustand state through discrete primitive selectors (`useSelectedSymbol()`, `useTicker(symbol)`) or compute derived arrays using `useMemo` over stable state slices, rather than creating inline object/array selectors inside `useMarketStore(state => [...])`. Individual watchlist items are wrapped in `React.memo` (`WatchlistItem`).
+
+**Rationale**:
+- React 19's `useSyncExternalStore` strictly checks snapshot referential equality and flags infinite re-render loops if a selector returns new object/array references on each call.
+- Fine-grained per-symbol subscriptions ensure that ticking a single instrument (e.g. BTC/USDT) only re-renders the BTC row and the active header ticker, while the other 5+ watchlist rows remain untouched by React's reconciliation engine.
+
+---
+
+## TD-015 — Synchronized Terminal State via Selected Symbol Store
+
+**Decision**: Centralize `selectedSymbol` inside `useMarketStore` so that user interactions in the Watchlist automatically synchronize the Terminal Header, Order Entry, Order Book, Chart, and Portfolio panels.
+
+**Rationale**:
+- Eliminates prop drilling through `App.tsx` and complex event bus coordination.
+- Allows any component in the application to read the active instrument or change it seamlessly.
+
+---
+
+## TD-016 — Centralized Financial Formatting Utilities
+
+**Decision**: Move all price, volume, percentage, quantity, and timestamp formatting into `@/utils/formatters.ts` with explicit boundary handling for micro-prices (`< 1`), finite number checking (`Number.isFinite`), and locale formatting.
+
+**Rationale**:
+- Avoids duplicated `toFixed()` / `toLocaleString()` logic across individual feature panels.
+- Protects against `NaN`, `null`, or `undefined` runtime formatting crashes when malformed data is encountered.
+
+
