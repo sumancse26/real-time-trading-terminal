@@ -1596,3 +1596,176 @@ input[type='number'],
   font-size: 0.75rem;
 }
 
+/* ─── Phase 13 Stress Test Panel ────────────────────────────────── */
+.stress-modal-content {
+  max-width: 860px !important;
+  width: 95vw !important;
+}
+
+.stress-test-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  color: var(--text-primary);
+}
+
+.stress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.stress-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+}
+
+.stress-control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.toggle-pill {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.toggle-pill.active {
+  background: rgba(0, 243, 255, 0.15);
+  color: var(--cyan-accent);
+  border-color: rgba(0, 243, 255, 0.4);
+}
+
+.stress-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stress-progress-container {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 243, 255, 0.2);
+}
+
+.stress-progress-bar-bg {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.stress-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan-accent), #7928ca);
+  transition: width 0.3s ease;
+}
+
+.stress-comparison-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.stress-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.stat-highlight-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-title {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.stat-value {
+  font-size: 1.25rem;
+  font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.stat-sub {
+  font-size: 0.5625rem;
+  color: var(--text-secondary);
+}
+
+.stress-metrics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.6875rem;
+  font-family: 'JetBrains Mono', monospace;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.stress-metrics-table th,
+.stress-metrics-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.stress-metrics-table th {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.stress-bottlenecks-card {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.bottlenecks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.bottleneck-item {
+  background: var(--bg-card);
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+

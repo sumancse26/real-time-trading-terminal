@@ -106,6 +106,9 @@ export class RafBatchDispatcher<T> {
   private subscribers = new Set<(items: T[]) => void>()
   private batchStartTime = 0
   private isBatchingEnabled = true
+  /** Phase 13: Adaptive mode doubles the flush window under high load */
+  private isAdaptiveMode = false
+  private adaptiveFrameCount = 0
 
   constructor(private fallbackIntervalMs = 16) {}
 
@@ -118,6 +121,20 @@ export class RafBatchDispatcher<T> {
 
   public getBatchingEnabled(): boolean {
     return this.isBatchingEnabled
+  }
+
+  /**
+   * Phase 13: Adaptive batch mode.
+   * When enabled, flushes are delayed by 2 RAF frames (~33ms) instead of 1 (~16ms)
+   * to further compress renders under high load (>500 msg/s).
+   */
+  public setAdaptiveMode(enabled: boolean): void {
+    this.isAdaptiveMode = enabled
+    this.adaptiveFrameCount = 0
+  }
+
+  public getAdaptiveMode(): boolean {
+    return this.isAdaptiveMode
   }
 
   public push(item: T): void {
@@ -167,17 +184,33 @@ export class RafBatchDispatcher<T> {
   private scheduleFlush(): void {
     if (typeof requestAnimationFrame !== 'undefined') {
       if (this.rafId === null) {
-        this.rafId = requestAnimationFrame(() => {
-          this.rafId = null
-          this.flushNow()
-        })
+        if (this.isAdaptiveMode) {
+          // Phase 13: Adaptive mode — wait 2 RAF frames before flushing
+          this.adaptiveFrameCount = 0
+          const adaptiveLoop = () => {
+            this.adaptiveFrameCount++
+            if (this.adaptiveFrameCount >= 2) {
+              this.rafId = null
+              this.flushNow()
+            } else {
+              this.rafId = requestAnimationFrame(adaptiveLoop)
+            }
+          }
+          this.rafId = requestAnimationFrame(adaptiveLoop)
+        } else {
+          this.rafId = requestAnimationFrame(() => {
+            this.rafId = null
+            this.flushNow()
+          })
+        }
       }
     } else {
       if (this.timerId === null) {
+        const interval = this.isAdaptiveMode ? this.fallbackIntervalMs * 2 : this.fallbackIntervalMs
         this.timerId = setTimeout(() => {
           this.timerId = null
           this.flushNow()
-        }, this.fallbackIntervalMs)
+        }, interval)
       }
     }
   }

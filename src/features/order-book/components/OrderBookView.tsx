@@ -213,9 +213,9 @@ export const OrderBookView: React.FC = () => {
         {/* Asks (Sells) */}
         {viewMode !== 'bids' && (
           <div className="book-section asks-section" data-testid="book-asks-section">
-            {processedBook.asks.map((level, idx) => (
+            {processedBook.asks.map((level) => (
               <OrderBookRow
-                key={`ask-${idx}-${level.price}`}
+                key={`ask-${level.price}`}
                 level={level}
                 side="ask"
                 onSelect={handleRowClick}

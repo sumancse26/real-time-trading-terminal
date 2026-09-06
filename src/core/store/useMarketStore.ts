@@ -1,6 +1,14 @@
 import { create } from 'zustand'
 import type { MarketTicker } from '@/types/market'
 
+/**
+ * Phase 13 — Price Deadband Threshold
+ * Skips Zustand state transitions when the price change is below this relative threshold.
+ * At 0.001% (0.00001), a $64,250 BTC price must change by ≥$0.64 to trigger a re-render.
+ * This eliminates thousands of no-op renders under 1kHz tick rates.
+ */
+const PRICE_DEADBAND_RATIO = 0.00001
+
 export type WatchlistCategory = 'ALL' | 'PERP' | 'SPOT' | 'FAVORITES'
 export type WatchlistSortField = 'symbol' | 'lastPrice' | 'priceChangePercent24h' | 'volume24h' | null
 export type SortDirection = 'asc' | 'desc'
@@ -205,9 +213,17 @@ export const useMarketStore = create<MarketState>((set, get) => ({
   updateTicker: (ticker: MarketTicker) => {
     set(state => {
       const existing = state.entities[ticker.symbol]
+      if (!existing) {
+        return {
+          entities: { ...state.entities, [ticker.symbol]: ticker },
+        }
+      }
+
+      // Phase 13 Deadband: skip state transition if price change is below threshold
+      const priceDelta = Math.abs(ticker.lastPrice - existing.lastPrice)
+      const deadband = existing.lastPrice * PRICE_DEADBAND_RATIO
       if (
-        existing &&
-        existing.lastPrice === ticker.lastPrice &&
+        priceDelta < deadband &&
         existing.priceChangePercent24h === ticker.priceChangePercent24h &&
         existing.volume24h === ticker.volume24h
       ) {
@@ -267,26 +283,37 @@ export const useMarketStore = create<MarketState>((set, get) => ({
 
   batchUpdatePrices: (updates: Array<{ symbol: string; price: number; change24h?: number; changePercent24h?: number }>) => {
     set(state => {
-      const nextEntities = { ...state.entities }
+      // Phase 13: defer shallow clone until we confirm at least one symbol exceeds the deadband
+      let nextEntities: Record<string, MarketTicker> | null = null
       let hasChanges = false
 
       for (const u of updates) {
-        const current = nextEntities[u.symbol]
-        if (current) {
-          hasChanges = true
-          nextEntities[u.symbol] = {
-            ...current,
-            lastPrice: u.price,
-            priceChange24h: u.change24h !== undefined ? u.change24h : current.priceChange24h,
-            priceChangePercent24h:
-              u.changePercent24h !== undefined
-                ? u.changePercent24h
-                : current.priceChangePercent24h,
-          }
+        const current = state.entities[u.symbol]
+        if (!current) continue
+
+        // Deadband check per-symbol
+        const priceDelta = Math.abs(u.price - current.lastPrice)
+        const deadband = current.lastPrice * PRICE_DEADBAND_RATIO
+        if (priceDelta < deadband && u.changePercent24h === undefined) {
+          continue
+        }
+
+        if (!nextEntities) {
+          nextEntities = { ...state.entities }
+        }
+        hasChanges = true
+        nextEntities[u.symbol] = {
+          ...current,
+          lastPrice: u.price,
+          priceChange24h: u.change24h !== undefined ? u.change24h : current.priceChange24h,
+          priceChangePercent24h:
+            u.changePercent24h !== undefined
+              ? u.changePercent24h
+              : current.priceChangePercent24h,
         }
       }
 
-      return hasChanges ? { entities: nextEntities } : state
+      return hasChanges && nextEntities ? { entities: nextEntities } : state
     })
   },
 }))

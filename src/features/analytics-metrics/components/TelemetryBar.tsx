@@ -14,11 +14,14 @@ import {
   Play,
   CheckCircle2,
   Clock,
+  Flame,
 } from 'lucide-react'
+import { StressTestPanel } from './StressTestPanel'
 
 export const TelemetryBar: React.FC = () => {
   const [metrics, setMetrics] = useState<PerformanceMetrics>(globalTracker.getMetrics())
   const [showBenchmarkModal, setShowBenchmarkModal] = useState(false)
+  const [showStressModal, setShowStressModal] = useState(false)
   const [benchmarkRate, setBenchmarkRate] = useState<SimulationRatePreset>(1000)
   const [benchmarkResult, setBenchmarkResult] = useState<BenchmarkResult | null>(null)
   const [isRunningBench, setIsRunningBench] = useState(false)
@@ -153,6 +156,18 @@ export const TelemetryBar: React.FC = () => {
         >
           <BarChart3 size={12} />
           <span>BENCHMARK</span>
+        </button>
+
+        {/* Phase 13 Full Terminal Stress Test Button */}
+        <button
+          type="button"
+          className="benchmark-open-btn stress-btn text-warning"
+          onClick={() => setShowStressModal(true)}
+          data-testid="open-stress-modal-btn"
+          title="Open Phase 13 Full Terminal 1kHz Stress Test & Profiler"
+        >
+          <Flame size={12} />
+          <span>STRESS TEST</span>
         </button>
       </div>
 
@@ -311,6 +326,19 @@ export const TelemetryBar: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Phase 13 Full Terminal Stress Test Modal */}
+      {showStressModal && (
+        <div className="benchmark-modal-backdrop" onClick={() => setShowStressModal(false)}>
+          <div
+            className="benchmark-modal-content stress-modal-content"
+            onClick={e => e.stopPropagation()}
+            data-testid="stress-modal"
+          >
+            <StressTestPanel onClose={() => setShowStressModal(false)} />
           </div>
         </div>
       )}
