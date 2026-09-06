@@ -33,7 +33,9 @@ import {
   AlertCircle,
   Clock,
   Database,
+  Cpu,
 } from 'lucide-react'
+import { RiskAnalyticsPanel } from './RiskAnalyticsPanel'
 
 export interface PositionRowProps {
   position: Position
@@ -117,7 +119,7 @@ export const PositionRow: React.FC<PositionRowProps> = memo(({ position, isClosi
 PositionRow.displayName = 'PositionRow'
 
 export const PositionsView: React.FC = () => {
-  const [tab, setTab] = useState<'positions' | 'orders' | 'history' | 'archive'>('positions')
+  const [tab, setTab] = useState<'positions' | 'orders' | 'history' | 'archive' | 'risk'>('positions')
 
   const {
     data: positions = [],
@@ -214,6 +216,15 @@ export const PositionsView: React.FC = () => {
           >
             <Database size={13} className="mr-1 inline text-cyan-accent" />
             100K ARCHIVE (100,000)
+          </button>
+          <button
+            type="button"
+            className={`portfolio-tab-btn ${tab === 'risk' ? 'active text-warning' : ''}`}
+            onClick={() => setTab('risk')}
+            data-testid="tab-risk"
+          >
+            <Cpu size={13} className="mr-1 inline text-warning" />
+            RISK & ANALYTICS (WEB WORKER)
           </button>
         </div>
       }
@@ -480,6 +491,7 @@ export const PositionsView: React.FC = () => {
         )}
 
         {tab === 'archive' && <VirtualizedOrderArchive />}
+        {tab === 'risk' && <RiskAnalyticsPanel positions={positions} />}
       </div>
     </Card>
   )
