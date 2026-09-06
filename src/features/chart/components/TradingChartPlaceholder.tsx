@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Clock,
 } from 'lucide-react'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 
 const TIMEFRAMES: ChartTimeframe[] = ['1D', '1W', '1M', '3M', '1Y']
 const INDICATORS = ['EMA (20, 50)', 'VOL', 'RSI', 'MACD']
@@ -168,6 +169,14 @@ export const TradingChartPlaceholder: React.FC = () => {
   const [timeframe, setTimeframe] = useState<ChartTimeframe>('1D')
   const [activeIndicators, setActiveIndicators] = useState<string[]>(['EMA (20, 50)', 'VOL'])
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+
+  useKeyboardShortcuts({
+    TIMEFRAME_1D: () => setTimeframe('1D'),
+    TIMEFRAME_1W: () => setTimeframe('1W'),
+    TIMEFRAME_1M: () => setTimeframe('1M'),
+    TIMEFRAME_3M: () => setTimeframe('3M'),
+    TIMEFRAME_1Y: () => setTimeframe('1Y'),
+  })
   const [crosshair, setCrosshair] = useState<{ x: number; y: number } | null>(null)
 
   const {
@@ -276,15 +285,17 @@ export const TradingChartPlaceholder: React.FC = () => {
           </div>
 
           <div className="timeframe-group" data-testid="chart-timeframe-group">
-            {TIMEFRAMES.map(tf => (
+            {TIMEFRAMES.map((tf, idx) => (
               <button
                 key={tf}
                 type="button"
                 className={`tf-btn ${timeframe === tf ? 'active' : ''}`}
                 onClick={() => setTimeframe(tf)}
                 data-testid={`timeframe-${tf}`}
+                title={`Switch to ${tf} timeframe (Shortcut: Press ${idx + 1})`}
               >
-                {tf}
+                <span>{tf}</span>
+                <kbd className="kbd-badge tf-kbd font-mono text-[8px]">{idx + 1}</kbd>
               </button>
             ))}
           </div>

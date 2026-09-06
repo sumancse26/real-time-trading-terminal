@@ -13,6 +13,7 @@ import {
 } from '@/core/store/useMarketStore'
 import { WatchlistItem } from './WatchlistItem'
 import { Search, Star, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 
 export const WatchlistPanel: React.FC = () => {
   const selectedSymbol = useSelectedSymbol()
@@ -29,6 +30,22 @@ export const WatchlistPanel: React.FC = () => {
   const setCategory = useMarketStore(state => state.setCategory)
   const setSort = useMarketStore(state => state.setSort)
   const batchUpdatePrices = useMarketStore(state => state.batchUpdatePrices)
+
+  const searchInputRef = React.useRef<HTMLInputElement | null>(null)
+
+  useKeyboardShortcuts({
+    FOCUS_SEARCH: () => {
+      if (searchInputRef.current) {
+        searchInputRef.current.focus()
+        searchInputRef.current.select()
+      }
+    },
+    ESCAPE: () => {
+      if (document.activeElement === searchInputRef.current) {
+        searchInputRef.current?.blur()
+      }
+    },
+  })
 
   // Simulate correlated live market price ticks for all watchlist symbols
   const handleTickerUpdate = useCallback(
@@ -193,13 +210,17 @@ export const WatchlistPanel: React.FC = () => {
         <div className="watchlist-search">
           <Search size={11} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
           <input
+            ref={searchInputRef}
             type="text"
+            id="watchlist-search-input"
             className="watchlist-search-input"
             placeholder="Search symbols…"
             value={query}
             onChange={e => setSearchQuery(e.target.value)}
             aria-label="Search symbols"
+            data-testid="watchlist-search-input"
           />
+          <kbd className="kbd-badge font-mono" title="Press / to search symbols">/</kbd>
         </div>
 
         {/* Column Headers with Sortable Triggers */}

@@ -3,9 +3,13 @@ import { useSelectedTicker } from '@/core/store/useMarketStore'
 import { useConnectionStatus, useConnectionLatency } from '@/core/store/useConnectionStore'
 import { Badge } from '@/components/ui/Badge'
 import { formatPrice, formatPercent, formatVolume, formatQuantity } from '@/utils/formatters'
-import { Activity, ShieldCheck, Zap, Bell, Volume2, Wifi, WifiOff } from 'lucide-react'
+import { Activity, ShieldCheck, Zap, Bell, Volume2, Wifi, WifiOff, Command } from 'lucide-react'
 
-export const TerminalHeader: React.FC = () => {
+export interface TerminalHeaderProps {
+  onOpenShortcuts?: () => void
+}
+
+export const TerminalHeader: React.FC<TerminalHeaderProps> = ({ onOpenShortcuts }) => {
   const ticker = useSelectedTicker()
   const connectionStatus = useConnectionStatus()
   const latency = useConnectionLatency()
@@ -129,6 +133,15 @@ export const TerminalHeader: React.FC = () => {
           </button>
           <button className="icon-btn" title="Notifications" aria-label="Notifications">
             <Bell size={16} />
+          </button>
+          <button
+            className="icon-btn"
+            onClick={onOpenShortcuts}
+            title="Keyboard Shortcuts (Press ?)"
+            aria-label="Keyboard Shortcuts"
+            data-testid="open-shortcuts-btn"
+          >
+            <Command size={16} />
           </button>
           <div className="user-profile">
             <span className="user-avatar">TR</span>

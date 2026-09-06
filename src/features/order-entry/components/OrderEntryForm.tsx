@@ -14,7 +14,9 @@ import {
   AlertCircle,
   CheckCircle2,
   Zap,
+  CornerDownLeft,
 } from 'lucide-react'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 
 interface OrderEntryFormInnerProps {
   selectedSymbol: string
@@ -37,6 +39,13 @@ const OrderEntryFormInner: React.FC<OrderEntryFormInnerProps> = ({ selectedSymbo
     isError?: boolean
     orderId?: string
   } | null>(null)
+  const [flashSide, setFlashSide] = useState<'buy' | 'sell' | null>(null)
+
+  const triggerSideFlash = (newSide: Side) => {
+    setSide(newSide)
+    setFlashSide(newSide)
+    setTimeout(() => setFlashSide(null), 300)
+  }
 
   // Sync prefilled price and quantity from Order Book click via store subscription
   useEffect(() => {
@@ -153,6 +162,27 @@ const OrderEntryFormInner: React.FC<OrderEntryFormInnerProps> = ({ selectedSymbo
     )
   }
 
+  // Register Keyboard Shortcuts for Order Entry
+  useKeyboardShortcuts({
+    BUY: () => triggerSideFlash('buy'),
+    SELL: () => triggerSideFlash('sell'),
+    ORDER_TYPE_LIMIT: () => setOrderType('LIMIT'),
+    ORDER_TYPE_MARKET: () => setOrderType('MARKET'),
+    SUBMIT: (e) => {
+      // If user presses Enter and the form is valid, submit
+      if (isFormValid && !createOrderMutation.isPending) {
+        e.preventDefault()
+        handleSubmit(e as unknown as React.FormEvent)
+      }
+    },
+    ESCAPE: () => {
+      // Blur any focused input in the active document
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur()
+      }
+    },
+  })
+
   return (
     <form
       onSubmit={handleSubmit}
@@ -165,27 +195,29 @@ const OrderEntryFormInner: React.FC<OrderEntryFormInnerProps> = ({ selectedSymbo
       <div className="side-toggle-group" role="radiogroup" aria-label="Order Side">
         <button
           type="button"
-          className={`side-btn buy-tab ${side === 'buy' ? 'active' : ''}`}
-          onClick={() => setSide('buy')}
+          className={`side-btn buy-tab ${side === 'buy' ? 'active' : ''} ${flashSide === 'buy' ? 'hotkey-flash-buy' : ''}`}
+          onClick={() => triggerSideFlash('buy')}
           role="radio"
           aria-checked={side === 'buy'}
           aria-label="BUY / LONG"
           data-testid="side-buy-btn"
         >
           <ArrowUpRight size={14} />
-          BUY / LONG
+          <span>BUY / LONG</span>
+          <kbd className="kbd-badge buy-kbd font-mono" title="Shortcut: Press B">B</kbd>
         </button>
         <button
           type="button"
-          className={`side-btn sell-tab ${side === 'sell' ? 'active' : ''}`}
-          onClick={() => setSide('sell')}
+          className={`side-btn sell-tab ${side === 'sell' ? 'active' : ''} ${flashSide === 'sell' ? 'hotkey-flash-sell' : ''}`}
+          onClick={() => triggerSideFlash('sell')}
           role="radio"
           aria-checked={side === 'sell'}
           aria-label="SELL / SHORT"
           data-testid="side-sell-btn"
         >
           <ArrowDownRight size={14} />
-          SELL / SHORT
+          <span>SELL / SHORT</span>
+          <kbd className="kbd-badge sell-kbd font-mono" title="Shortcut: Press S">S</kbd>
         </button>
       </div>
 
@@ -202,6 +234,8 @@ const OrderEntryFormInner: React.FC<OrderEntryFormInnerProps> = ({ selectedSymbo
             data-testid={`order-type-${t}`}
           >
             {t.replace('_', ' ')}
+            {t === 'LIMIT' && <kbd className="kbd-badge ml-1 font-mono text-[9px]">L</kbd>}
+            {t === 'MARKET' && <kbd className="kbd-badge ml-1 font-mono text-[9px]">M</kbd>}
           </button>
         ))}
       </div>
@@ -405,15 +439,20 @@ const OrderEntryFormInner: React.FC<OrderEntryFormInnerProps> = ({ selectedSymbo
         type="submit"
         variant={side === 'buy' ? 'buy' : 'sell'}
         size="lg"
-        className="w-full mt-1 font-bold"
-        isLoading={createOrderMutation.isPending}
+        className="w-full font-bold flex items-center justify-center gap-2"
         disabled={!isFormValid || createOrderMutation.isPending}
+        isLoading={createOrderMutation.isPending}
         data-testid="order-submit-btn"
-        aria-label={`Submit ${side.toUpperCase()} Order for ${baseSymbol}`}
       >
-        {createOrderMutation.isPending
-          ? 'SUBMITTING ORDER…'
-          : `${side === 'buy' ? 'BUY / LONG' : 'SELL / SHORT'} ${baseSymbol}`}
+        <span>
+          {createOrderMutation.isPending
+            ? 'Placing Order…'
+            : `${side === 'buy' ? 'BUY / LONG' : 'SELL / SHORT'} ${baseSymbol}`}
+        </span>
+        <kbd className="kbd-badge text-[9px] font-mono opacity-80" title="Shortcut: Press Enter to submit">
+          <CornerDownLeft size={10} className="inline mr-0.5" />
+          Enter
+        </kbd>
       </Button>
     </form>
   )

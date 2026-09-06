@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '@/core/query/queryClient'
 import { TerminalHeader } from '@/features/header/components/TerminalHeader'
@@ -9,9 +9,18 @@ import { TradingChartPlaceholder } from '@/features/chart/components/TradingChar
 import { TradesStreamView } from '@/features/trades-stream/components/TradesStreamView'
 import { OrderEntryForm } from '@/features/order-entry/components/OrderEntryForm'
 import { PositionsView } from '@/features/positions-portfolio/components/PositionsView'
+import { KeyboardShortcutsModal } from '@/components/ui/KeyboardShortcutsModal'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { feedSimulator } from '@/core/stream/mockFeed'
 
 export const AppContent: React.FC = () => {
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false)
+
+  useKeyboardShortcuts({
+    TOGGLE_SHORTCUTS_HELP: () => setShowShortcutsModal((prev) => !prev),
+    ESCAPE: () => setShowShortcutsModal(false),
+  })
+
   useEffect(() => {
     feedSimulator.start(20)
     return () => {
@@ -21,7 +30,7 @@ export const AppContent: React.FC = () => {
 
   return (
     <div className="app-container" data-testid="app-container">
-      <TerminalHeader />
+      <TerminalHeader onOpenShortcuts={() => setShowShortcutsModal(true)} />
       <TelemetryBar />
 
       <main className="terminal-layout">
@@ -55,6 +64,12 @@ export const AppContent: React.FC = () => {
           <PositionsView />
         </div>
       </main>
+
+      {/* Keyboard Shortcuts Reference Modal */}
+      <KeyboardShortcutsModal
+        isOpen={showShortcutsModal}
+        onClose={() => setShowShortcutsModal(false)}
+      />
     </div>
   )
 }

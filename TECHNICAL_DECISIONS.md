@@ -664,4 +664,50 @@
 **Rationale**:
 - Provides institutional users and developers concrete evidence of zero main-thread freeze during heavy quantitative risk simulations.
 
+---
+
+## TD-064 — Global Event Delegation & Strict Text-Input Protection
+
+**Decision**: Implemented `isTextInputActive()` guard inside `KeyboardManager` that checks `document.activeElement` for `input` (text/number/search/email/password), `textarea`, `select`, or `isContentEditable`. Single-letter fast hotkeys (`B`, `S`, `/`, `M`, `L`, `1-5`) are strictly suppressed whenever the user is actively typing.
+
+**Rationale**:
+- Prevents catastrophic UX bugs where typing a symbol or price containing the letter 'b' or 's' accidentally changes the order side or focuses unrelated controls.
+
+---
+
+## TD-065 — Zero-Allocation Action Dispatch for Keyboard Shortcuts
+
+**Decision**: Structured `KeyboardManager` with a lightweight Set-based subscription mechanism and direct keycode mapping. No intermediate objects or garbage allocations are created per keypress.
+
+**Rationale**:
+- Ensures instant $(<0.5\text{ ms})$ shortcut response latency without GC overhead during high-frequency trading sessions.
+
+---
+
+## TD-066 — Micro-Interaction Visual Flash & Kbd Badge Hints
+
+**Decision**: Added CSS keyframe pulse animations (`.hotkey-flash-buy`, `.hotkey-flash-sell`) that trigger upon hotkey activation, paired with accessible `<kbd className="kbd-badge">` tags on buttons and search inputs.
+
+**Rationale**:
+- Gives institutional traders immediate visual confirmation of state changes without disruptive popups or audio alerts.
+
+---
+
+## TD-067 — Unified Modal & Input Escape Dismissal Protocol
+
+**Decision**: Configured the `Escape` key to globally close active modals (Telemetry benchmark, Stress profiler, Shortcuts reference) or blur currently focused input elements.
+
+**Rationale**:
+- Adheres to institutional desktop terminal conventions (e.g. Bloomberg / TradingView) where `Esc` acts as the universal "reset focus / dismiss overlay" command.
+
+---
+
+## TD-068 — Dedicated Keyboard Shortcuts Reference Modal (`?` Hotkey)
+
+**Decision**: Built `KeyboardShortcutsModal.tsx` accessible via the `?` hotkey or header command icon, cataloging all Trading, Navigation, and General shortcuts in an accessible dialog with `Esc` dismissal.
+
+**Rationale**:
+- Onboards new traders quickly with instant in-terminal shortcut discovery.
+
+
 
