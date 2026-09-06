@@ -363,6 +363,47 @@
 - Provides resilient error recovery when simulated network failures or transient disconnects occur.
 - Maintains visual terminal stability without breaking surrounding grid cell layouts during async loading or network outages.
 
+---
+
+# Phase 8 — Technical Decisions
+
+## TD-034 — Real-Time Multi-Tier Order Validation (Symbol, Quantity, Price, Margin)
+
+**Decision**: Implemented client-side deterministic validation across symbol format, numeric finite positive boundaries ($> 0$), minimum notional threshold ($\ge \$5.00$), and balance sufficiency ($\text{Required Margin} + \text{Est. Fee} \le \text{Available Margin}$).
+
+**Rationale**:
+- Immediate inline validation stops invalid wire mutations before reaching the network or exchange matching engine, preventing failed transactions and 400 Bad Request error round-trips.
+- Clear inline error messages directly guide the user on the exact issue (e.g. required vs available margin).
+
+---
+
+## TD-035 — Dynamic Maker/Taker Fee & Isolated Liquidation Estimation
+
+**Decision**: Computed real-time maker fees ($0.02\%$) for LIMIT orders, taker fees ($0.04\%$) for MARKET orders, and dynamic liquidation price estimates based on side (Long vs Short), entry price, leverage, and a $0.5\%$ maintenance margin rate.
+
+**Rationale**:
+- Provides traders with complete pre-trade risk and cost transparency before committing margin capital.
+- Accurately distinguishes maker vs taker fees based on order execution semantics.
+
+---
+
+## TD-036 — Optimistic Mutation Execution & Parent Cache Invalidation
+
+**Decision**: Order submission invokes `useCreateOrderMutation()`, which updates local order cache, invalidates `orders.all` and `account.all` queries on success, and manages accessible `isPending` loading state.
+
+**Rationale**:
+- Instant feedback in the Order Entry widget and immediate synchronization across the Open Orders table and Account balance chips without page refreshes.
+
+---
+
+## TD-037 — Full Accessibility (WAI-ARIA) Compliance for Order Form Controls
+
+**Decision**: Applied semantic WAI-ARIA attributes (`role="form"`, `role="radiogroup"`, `role="tablist"`, `aria-checked`, `aria-selected`, `aria-invalid`, `aria-label`, and unique `<label htmlFor>`).
+
+**Rationale**:
+- Ensures keyboard navigability, screen reader compatibility, and clear input validation state announcements across high-frequency trading interactions.
+
+
 
 
 

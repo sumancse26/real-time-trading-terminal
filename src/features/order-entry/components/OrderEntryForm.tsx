@@ -1,11 +1,20 @@
-import React, { useState } from 'react'
+import React, { useState, useId } from 'react'
 import type { OrderType, Side } from '@/types/order'
 import { useCreateOrderMutation } from '@/core/query'
+import { useAccountSummaryQuery } from '@/core/query/hooks/useAccountQueries'
 import { useSelectedSymbol, useSelectedTicker } from '@/core/store/useMarketStore'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { formatPrice } from '@/utils/formatters'
-import { SlidersHorizontal, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import {
+  SlidersHorizontal,
+  ArrowUpRight,
+  ArrowDownRight,
+  Wallet,
+  AlertCircle,
+  CheckCircle2,
+  Zap,
+} from 'lucide-react'
 
 interface OrderEntryFormInnerProps {
   selectedSymbol: string
@@ -13,35 +22,88 @@ interface OrderEntryFormInnerProps {
 
 const OrderEntryFormInner: React.FC<OrderEntryFormInnerProps> = ({ selectedSymbol }) => {
   const selectedTicker = useSelectedTicker()
+  const { data: accountSummary } = useAccountSummaryQuery()
 
-  const initialPrice = selectedTicker
-    ? selectedTicker.lastPrice.toFixed(selectedTicker.lastPrice > 10 ? 2 : 4)
-    : '64250.00'
+  const livePrice = selectedTicker?.lastPrice ?? 64250.0
+  const initialPriceStr = livePrice.toFixed(livePrice > 10 ? 2 : 4)
 
   const [orderType, setOrderType] = useState<OrderType>('LIMIT')
   const [side, setSide] = useState<Side>('buy')
-  const [price, setPrice] = useState<string>(initialPrice)
+  const [price, setPrice] = useState<string>(initialPriceStr)
   const [amount, setAmount] = useState<string>('0.25')
   const [leverage, setLeverage] = useState<number>(20)
-  const [feedbackMsg, setFeedbackMsg] = useState<{ text: string; isError?: boolean } | null>(null)
+  const [feedbackMsg, setFeedbackMsg] = useState<{
+    text: string
+    isError?: boolean
+    orderId?: string
+  } | null>(null)
+
+  const priceInputId = useId()
+  const amountInputId = useId()
+  const leverageInputId = useId()
 
   const createOrderMutation = useCreateOrderMutation()
 
-  const numPrice = parseFloat(price) || 0
+  const baseSymbol = selectedSymbol.split('/')[0] || 'BTC'
+  const quoteSymbol = selectedSymbol.split('/')[1] || 'USDT'
+
+  const numPrice = orderType === 'MARKET' ? livePrice : parseFloat(price) || 0
   const numAmount = parseFloat(amount) || 0
+
+  // Financial Calculations
   const orderValue = numPrice * numAmount
+  const feeRate = orderType === 'MARKET' ? 0.0004 : 0.0002 // 0.04% Taker vs 0.02% Maker
+  const estFee = orderValue * feeRate
   const requiredMargin = leverage > 0 ? orderValue / leverage : orderValue
+  const availableMargin = accountSummary?.availableMargin ?? 23091.05
+  const totalOutlay = requiredMargin + estFee
+
+  // Estimated Liquidation Price Calculation (Maintenance Margin Rate = 0.5%)
+  const mmr = 0.005
+  const estLiqPrice =
+    numPrice > 0 && leverage > 0
+      ? side === 'buy'
+        ? Math.max(0, numPrice * (1 - 1 / leverage + mmr))
+        : numPrice * (1 + 1 / leverage - mmr)
+      : 0
+
+  // Validation Rules
+  const isPriceValid = orderType === 'MARKET' || (numPrice > 0 && Number.isFinite(numPrice))
+  const isAmountValid = numAmount > 0 && Number.isFinite(numAmount)
+  const isMinNotionalValid = orderValue >= 5.0 || numAmount === 0
+  const hasSufficientBalance = totalOutlay <= availableMargin
+
+  let validationError: string | null = null
+  if (!isPriceValid) {
+    validationError = 'Please enter a valid price (> 0)'
+  } else if (!isAmountValid && amount !== '') {
+    validationError = 'Please enter a valid quantity (> 0)'
+  } else if (!isMinNotionalValid && numAmount > 0) {
+    validationError = 'Order value must be at least $5.00'
+  } else if (!hasSufficientBalance) {
+    validationError = `Insufficient available margin (Need $${formatPrice(totalOutlay)}, Have $${formatPrice(availableMargin)})`
+  }
+
+  const isFormValid =
+    isPriceValid && isAmountValid && isMinNotionalValid && hasSufficientBalance && numAmount > 0
+
+  // Quick-fill percentage calculation
+  const handleQuickFill = (pct: number) => {
+    if (numPrice <= 0) return
+    const maxAffordableNotional = availableMargin * leverage * (pct / 100)
+    const maxQty = maxAffordableNotional / numPrice
+    const precision = numPrice > 100 ? 3 : 4
+    setAmount(Math.max(0.001, Number(maxQty.toFixed(precision))).toString())
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (numAmount <= 0) {
-      setFeedbackMsg({ text: 'Please enter a valid quantity', isError: true })
-      return
-    }
-
-    if (orderType === 'LIMIT' && numPrice <= 0) {
-      setFeedbackMsg({ text: 'Please enter a valid price', isError: true })
+    if (!isFormValid) {
+      setFeedbackMsg({
+        text: validationError || 'Please complete all required fields correctly',
+        isError: true,
+      })
       return
     }
 
@@ -50,20 +112,21 @@ const OrderEntryFormInner: React.FC<OrderEntryFormInnerProps> = ({ selectedSymbo
         symbol: selectedSymbol,
         side,
         type: orderType,
-        price: orderType === 'MARKET' ? selectedTicker?.lastPrice ?? numPrice : numPrice,
+        price: numPrice,
         quantity: numAmount,
       },
       {
         onSuccess: order => {
           setFeedbackMsg({
-            text: `Order submitted: ${order.side.toUpperCase()} ${order.quantity} ${baseAsset(selectedSymbol)} @ $${formatPrice(order.price)}`,
+            text: `Order #${order.id} placed successfully: ${order.side.toUpperCase()} ${order.quantity} ${baseSymbol} @ $${formatPrice(order.price)}`,
             isError: false,
+            orderId: order.id,
           })
-          setTimeout(() => setFeedbackMsg(null), 3500)
+          setTimeout(() => setFeedbackMsg(null), 5000)
         },
         onError: err => {
           setFeedbackMsg({
-            text: `Failed to place order: ${(err as Error).message}`,
+            text: `Order placement failed: ${(err as Error).message}`,
             isError: true,
           })
         },
@@ -72,13 +135,23 @@ const OrderEntryFormInner: React.FC<OrderEntryFormInnerProps> = ({ selectedSymbo
   }
 
   return (
-    <form onSubmit={handleSubmit} className="order-entry-form" data-testid="order-entry-form">
-      {/* Buy / Sell Switch */}
-      <div className="side-toggle-group">
+    <form
+      onSubmit={handleSubmit}
+      className="order-entry-form"
+      data-testid="order-entry-form"
+      role="form"
+      aria-label={`${selectedSymbol} Order Entry Form`}
+    >
+      {/* Buy / Sell Toggle Switch */}
+      <div className="side-toggle-group" role="radiogroup" aria-label="Order Side">
         <button
           type="button"
           className={`side-btn buy-tab ${side === 'buy' ? 'active' : ''}`}
           onClick={() => setSide('buy')}
+          role="radio"
+          aria-checked={side === 'buy'}
+          aria-label="BUY / LONG"
+          data-testid="side-buy-btn"
         >
           <ArrowUpRight size={14} />
           BUY / LONG
@@ -87,6 +160,10 @@ const OrderEntryFormInner: React.FC<OrderEntryFormInnerProps> = ({ selectedSymbo
           type="button"
           className={`side-btn sell-tab ${side === 'sell' ? 'active' : ''}`}
           onClick={() => setSide('sell')}
+          role="radio"
+          aria-checked={side === 'sell'}
+          aria-label="SELL / SHORT"
+          data-testid="side-sell-btn"
         >
           <ArrowDownRight size={14} />
           SELL / SHORT
@@ -94,82 +171,131 @@ const OrderEntryFormInner: React.FC<OrderEntryFormInnerProps> = ({ selectedSymbo
       </div>
 
       {/* Order Type Tabs */}
-      <div className="type-tabs">
+      <div className="type-tabs" role="tablist" aria-label="Order Type">
         {(['LIMIT', 'MARKET', 'STOP_LIMIT'] as OrderType[]).map(t => (
           <button
             key={t}
             type="button"
             className={`type-tab ${orderType === t ? 'active' : ''}`}
             onClick={() => setOrderType(t)}
+            role="tab"
+            aria-selected={orderType === t}
+            data-testid={`order-type-${t}`}
           >
             {t.replace('_', ' ')}
           </button>
         ))}
       </div>
 
-      {/* Price Input */}
-      {orderType !== 'MARKET' && (
-        <div className="input-group">
-          <label className="input-label" htmlFor="order-price">
-            Price
+      {/* Price Input (Disabled for MARKET) */}
+      <div className="input-group">
+        <div className="flex justify-between items-center">
+          <label className="input-label" htmlFor={priceInputId}>
+            Order Price
           </label>
-          <div className="input-field-wrapper">
+          {orderType === 'LIMIT' && (
+            <button
+              type="button"
+              className="text-[10px] text-cyan-accent hover:underline cursor-pointer bg-transparent border-none p-0"
+              onClick={() => setPrice(livePrice.toFixed(livePrice > 10 ? 2 : 4))}
+            >
+              Use Market Price
+            </button>
+          )}
+        </div>
+
+        {orderType === 'MARKET' ? (
+          <div className="input-field-wrapper bg-neutral-900 border-neutral-700 opacity-90 cursor-not-allowed">
+            <div className="flex items-center justify-between w-full py-2">
+              <span className="text-xs text-neutral-300 font-mono flex items-center gap-1.5">
+                <Zap size={12} className="text-cyan-accent" />
+                Market Price (~${formatPrice(livePrice)})
+              </span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-accent font-bold">
+                BEST EXECUTION
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div
+            className={`input-field-wrapper ${!isPriceValid && price !== '' ? 'border-red-500' : ''}`}
+          >
             <input
-              id="order-price"
+              id={priceInputId}
               type="number"
-              step="0.1"
+              step="any"
               value={price}
               onChange={e => setPrice(e.target.value)}
               className="trade-input"
               placeholder="0.00"
+              aria-label="Price"
+              aria-invalid={!isPriceValid}
+              disabled={createOrderMutation.isPending}
               required
             />
-            <span className="input-suffix">USDT</span>
+            <span className="input-suffix">{quoteSymbol}</span>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Quantity Input */}
+      {/* Quantity / Size Input */}
       <div className="input-group">
-        <label className="input-label" htmlFor="order-amount">
-          Size
-        </label>
-        <div className="input-field-wrapper">
+        <div className="flex justify-between items-center">
+          <label className="input-label" htmlFor={amountInputId}>
+            Quantity ({baseSymbol})
+          </label>
+          <span className="text-[10px] text-neutral-400 font-mono">
+            Min: 0.001 {baseSymbol}
+          </span>
+        </div>
+        <div
+          className={`input-field-wrapper ${
+            (!isAmountValid && amount !== '') || !hasSufficientBalance ? 'border-red-500' : ''
+          }`}
+        >
           <input
-            id="order-amount"
+            id={amountInputId}
             type="number"
-            step="0.001"
+            step="any"
             value={amount}
             onChange={e => setAmount(e.target.value)}
             className="trade-input"
             placeholder="0.00"
+            aria-label="Size"
+            aria-invalid={!isAmountValid || !hasSufficientBalance}
+            disabled={createOrderMutation.isPending}
             required
           />
-          <span className="input-suffix">{baseAsset(selectedSymbol)}</span>
+          <span className="input-suffix">{baseSymbol}</span>
         </div>
       </div>
 
       {/* Percentage Quick-Fill Buttons */}
-      <div className="percentage-row">
+      <div className="percentage-row" aria-label="Quick Size Percentages">
         {[25, 50, 75, 100].map(pct => (
           <button
             key={pct}
             type="button"
             className="pct-btn"
-            onClick={() => setAmount(((1.2 * pct) / 100).toFixed(3))}
+            onClick={() => handleQuickFill(pct)}
+            disabled={createOrderMutation.isPending}
+            aria-label={`Set size to ${pct}% of available balance`}
           >
             {pct}%
           </button>
         ))}
       </div>
 
-      {/* Leverage Slider */}
+      {/* Leverage Slider & Controls */}
       <div className="leverage-control">
-        <div className="flex justify-between text-xs text-neutral-400 mb-1">
-          <span>Leverage</span>
-          <span className="font-mono text-cyan-accent">{leverage}x</span>
+        <div className="flex justify-between items-center text-xs text-neutral-400 mb-1">
+          <label htmlFor={leverageInputId} className="cursor-pointer">
+            Leverage
+          </label>
+          <span className="font-mono text-cyan-accent font-bold">{leverage}x CROSS</span>
         </div>
         <input
+          id={leverageInputId}
           type="range"
           min="1"
           max="100"
@@ -177,71 +303,124 @@ const OrderEntryFormInner: React.FC<OrderEntryFormInnerProps> = ({ selectedSymbo
           onChange={e => setLeverage(Number(e.target.value))}
           className="leverage-slider"
           aria-label="Leverage Slider"
+          disabled={createOrderMutation.isPending}
         />
       </div>
 
-      {/* Order Cost Estimates */}
-      <div className="order-summary-box">
+      {/* Financial Breakdown & Cost Estimation Table */}
+      <div className="order-summary-box" data-testid="order-summary">
         <div className="summary-row">
-          <span className="summary-label">Order Value</span>
-          <span className="summary-val font-mono">${orderValue.toFixed(2)}</span>
+          <span className="summary-label">Order Value (Notional)</span>
+          <span className="summary-val font-mono">${formatPrice(orderValue)}</span>
         </div>
         <div className="summary-row">
-          <span className="summary-label">Required Margin</span>
-          <span className="summary-val font-mono">${requiredMargin.toFixed(2)}</span>
+          <span className="summary-label">Initial Margin ({leverage}x)</span>
+          <span className="summary-val font-mono text-neutral-200">
+            ${formatPrice(requiredMargin)}
+          </span>
         </div>
         <div className="summary-row">
-          <span className="summary-label">Est. Fee (0.02%)</span>
-          <span className="summary-val font-mono">${(orderValue * 0.0002).toFixed(2)}</span>
+          <span className="summary-label">
+            Est. Fee ({orderType === 'MARKET' ? '0.04% Taker' : '0.02% Maker'})
+          </span>
+          <span className="summary-val font-mono text-neutral-400">
+            ${estFee.toFixed(4)} {quoteSymbol}
+          </span>
+        </div>
+        <div className="summary-row">
+          <span className="summary-label">Est. Liquidation Price</span>
+          <span
+            className={`summary-val font-mono ${
+              side === 'buy' ? 'text-amber-400' : 'text-purple-400'
+            }`}
+          >
+            {estLiqPrice > 0 ? `$${formatPrice(estLiqPrice)}` : '—'}
+          </span>
+        </div>
+        <div className="summary-row" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 4 }}>
+          <span className="summary-label font-bold text-neutral-300">Total Outlay Required</span>
+          <span className="summary-val font-mono font-bold text-cyan-accent">
+            ${formatPrice(totalOutlay)}
+          </span>
         </div>
       </div>
 
-      {/* Submit Execution Button */}
+      {/* Validation Error Alert */}
+      {validationError && (
+        <div
+          className="flex items-center gap-1.5 p-2 rounded bg-red-950/40 border border-red-800 text-red-400 text-xs"
+          role="alert"
+          data-testid="order-validation-error"
+        >
+          <AlertCircle size={14} className="flex-shrink-0" />
+          <span>{validationError}</span>
+        </div>
+      )}
+
+      {/* Success Notification Banner */}
+      {feedbackMsg && !feedbackMsg.isError && (
+        <div
+          className="flex items-center gap-1.5 p-2 rounded bg-emerald-950/40 border border-emerald-600 text-emerald-400 text-xs"
+          role="status"
+          data-testid="order-success-banner"
+        >
+          <CheckCircle2 size={14} className="flex-shrink-0" />
+          <span>{feedbackMsg.text}</span>
+        </div>
+      )}
+
+      {/* Error Notification Banner */}
+      {feedbackMsg && feedbackMsg.isError && (
+        <div
+          className="flex items-center gap-1.5 p-2 rounded bg-red-950/40 border border-red-600 text-red-400 text-xs"
+          role="alert"
+          data-testid="order-error-banner"
+        >
+          <AlertCircle size={14} className="flex-shrink-0" />
+          <span>{feedbackMsg.text}</span>
+        </div>
+      )}
+
+      {/* Execution Submit Button */}
       <Button
         type="submit"
         variant={side === 'buy' ? 'buy' : 'sell'}
         size="lg"
-        className="w-full mt-2"
+        className="w-full mt-1 font-bold"
         isLoading={createOrderMutation.isPending}
+        disabled={!isFormValid || createOrderMutation.isPending}
+        data-testid="order-submit-btn"
+        aria-label={`Submit ${side.toUpperCase()} Order for ${baseSymbol}`}
       >
-        {side === 'buy' ? 'BUY / LONG' : 'SELL / SHORT'} {baseAsset(selectedSymbol)}
+        {createOrderMutation.isPending
+          ? 'SUBMITTING ORDER…'
+          : `${side === 'buy' ? 'BUY / LONG' : 'SELL / SHORT'} ${baseSymbol}`}
       </Button>
-
-      {feedbackMsg && (
-        <div
-          className={feedbackMsg.isError ? 'order-error-banner' : 'order-success-banner'}
-          style={{
-            padding: '6px 10px',
-            marginTop: '8px',
-            borderRadius: '4px',
-            fontSize: '0.75rem',
-            textAlign: 'center',
-            background: feedbackMsg.isError ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-            color: feedbackMsg.isError ? 'var(--sell)' : 'var(--buy)',
-            border: `1px solid ${feedbackMsg.isError ? 'var(--sell)' : 'var(--buy)'}`,
-          }}
-        >
-          {feedbackMsg.text}
-        </div>
-      )}
     </form>
   )
 }
 
 export const OrderEntryForm: React.FC = () => {
   const selectedSymbol = useSelectedSymbol()
+  const { data: accountSummary } = useAccountSummaryQuery()
+  const availableMargin = accountSummary?.availableMargin ?? 23091.05
 
   return (
     <Card
       title={
         <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 font-bold">
             <SlidersHorizontal size={14} className="text-cyan-accent" />
             <span>ORDER ENTRY</span>
           </div>
-          <span className="text-xs px-2 py-0.5 rounded bg-neutral-800 text-cyan-accent font-mono border border-neutral-700">
-            20x CROSS
-          </span>
+          <div
+            className="flex items-center gap-1 text-[11px] text-neutral-400 font-mono bg-neutral-900 px-2 py-0.5 rounded border border-neutral-800"
+            title="Available Account Margin"
+            data-testid="available-margin-badge"
+          >
+            <Wallet size={11} className="text-cyan-accent" />
+            <span>${formatPrice(availableMargin)}</span>
+          </div>
         </div>
       }
       className="order-entry-card"
@@ -251,6 +430,4 @@ export const OrderEntryForm: React.FC = () => {
   )
 }
 
-function baseAsset(symbol: string): string {
-  return symbol.split('/')[0] || symbol
-}
+export default OrderEntryForm
