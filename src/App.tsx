@@ -1,4 +1,6 @@
 import React, { useEffect } from 'react'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { queryClient } from '@/core/query/queryClient'
 import { TerminalHeader } from '@/features/header/components/TerminalHeader'
 import { TelemetryBar } from '@/features/analytics-metrics/components/TelemetryBar'
 import { WatchlistPanel } from '@/features/watchlist/components/WatchlistPanel'
@@ -9,7 +11,7 @@ import { OrderEntryForm } from '@/features/order-entry/components/OrderEntryForm
 import { PositionsView } from '@/features/positions-portfolio/components/PositionsView'
 import { feedSimulator } from '@/core/stream/mockFeed'
 
-export const App: React.FC = () => {
+export const AppContent: React.FC = () => {
   useEffect(() => {
     feedSimulator.start(60)
     return () => {
@@ -54,6 +56,14 @@ export const App: React.FC = () => {
         </div>
       </main>
     </div>
+  )
+}
+
+export const App: React.FC = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AppContent />
+    </QueryClientProvider>
   )
 }
 

@@ -1,5 +1,6 @@
 import type { Side } from './market'
 
+export type { Side } from './market'
 export type { Position, PositionSide, MarginMode } from './position'
 
 export type OrderType = 'LIMIT' | 'MARKET' | 'STOP_LIMIT' | 'STOP_MARKET' | 'TRAILING_STOP'

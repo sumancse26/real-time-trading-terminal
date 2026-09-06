@@ -183,4 +183,49 @@
 - Avoids duplicated `toFixed()` / `toLocaleString()` logic across individual feature panels.
 - Protects against `NaN`, `null`, or `undefined` runtime formatting crashes when malformed data is encountered.
 
+---
+
+# Phase 4 — Technical Decisions
+
+## TD-017 — Mock HTTP Client with Configurable Latency Jitter & Failure Injection
+
+**Decision**: Implemented `MockHttpClient` in `src/core/api/client.ts` with configurable latency ranges (`minLatencyMs` to `maxLatencyMs`), failure rates (`failureRate`), and error type injection (`network`, `rateLimit`, `validation`, `server`).
+
+**Rationale**:
+- Enables realistic testing of async UI states (spinners, skeletons, toast notifications) during development.
+- Validates that UI gracefully surfaces 429 rate limits, 500 internal errors, and network disconnects with retry capabilities.
+- Zero-latency configuration (`minLatencyMs: 0, maxLatencyMs: 0`) provides instant deterministic execution in Vitest test runs.
+
+---
+
+## TD-018 — Native Request Cancellation via `AbortSignal` & Stale-Response Race Condition Protection
+
+**Decision**: All API methods accept an optional `AbortSignal` and track request sequences (`latestRequestSequences: Map<string, number>`). If an aborted signal is detected or a newer request for the same resource completes earlier, earlier in-flight responses are immediately cancelled with `RequestAbortedError`.
+
+**Rationale**:
+- When rapidly switching between symbols (e.g. BTC -> ETH -> SOL), stale responses from earlier slow requests could otherwise overwrite newer active symbol state.
+- TanStack Query automatically supplies the query's `signal` to `queryFn`, seamlessly aborting abandoned network requests on unmount or key change.
+
+---
+
+## TD-019 — Error Classification & Retry Policy Strategy
+
+**Decision**: Custom error hierarchy (`ApiError`, `NetworkError`, `RateLimitError`, `ValidationError`, `RequestAbortedError`) combined with an error-aware retry predicate in `QueryClient`.
+
+**Rationale**:
+- 4xx client errors (e.g., `ValidationError`) and user-aborted requests (`RequestAbortedError`) must NEVER be retried automatically, preventing spam loops and stale state mutations.
+- 5xx server errors and transient network drops retry up to 3 times using exponential backoff (`500ms * 2^attempt`).
+- Mutations (like placing orders) are configured with `retry: false` to protect against duplicate order submissions.
+
+---
+
+## TD-020 — Optimistic Mutations and Selective Cache Invalidation
+
+**Decision**: Order creation and position closure mutations immediately update the cache (`queryClient.setQueriesData`) and invalidate relevant query families (`orders.all`, `positions.all`, `account.all`).
+
+**Rationale**:
+- Provides instant UI responsiveness when placing orders or clicking Market Close.
+- Invalidating parent query keys ensures subsequent background reconciliation guarantees eventual consistency with backend state.
+
+
 
