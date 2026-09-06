@@ -1,8 +1,8 @@
-import React, { useState, useId } from 'react'
+import React, { useState, useEffect, useId } from 'react'
 import type { OrderType, Side } from '@/types/order'
 import { useCreateOrderMutation } from '@/core/query'
 import { useAccountSummaryQuery } from '@/core/query/hooks/useAccountQueries'
-import { useSelectedSymbol, useSelectedTicker } from '@/core/store/useMarketStore'
+import { useSelectedSymbol, useSelectedTicker, useMarketStore } from '@/core/store/useMarketStore'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { formatPrice } from '@/utils/formatters'
@@ -37,6 +37,25 @@ const OrderEntryFormInner: React.FC<OrderEntryFormInnerProps> = ({ selectedSymbo
     isError?: boolean
     orderId?: string
   } | null>(null)
+
+  // Sync prefilled price and quantity from Order Book click via store subscription
+  useEffect(() => {
+    let lastTs = 0
+    const unsub = useMarketStore.subscribe((state) => {
+      const prefill = state.orderFormPrefill
+      if (prefill && prefill.timestamp && prefill.timestamp !== lastTs) {
+        lastTs = prefill.timestamp
+        if (prefill.price !== undefined) {
+          setPrice(prefill.price.toFixed(prefill.price > 10 ? 2 : 4))
+          setOrderType('LIMIT')
+        }
+        if (prefill.quantity !== undefined && prefill.quantity > 0) {
+          setAmount(prefill.quantity.toFixed(3))
+        }
+      }
+    })
+    return unsub
+  }, [])
 
   const priceInputId = useId()
   const amountInputId = useId()

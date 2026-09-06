@@ -974,6 +974,44 @@ input[type='number'],
 }
 .precision-select:focus { border-color: var(--border-focus); outline: none; }
 
+.book-view-mode-group {
+  display: flex;
+  align-items: center;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 1px;
+}
+.book-mode-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  width: 22px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.book-mode-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+.book-mode-btn.active {
+  background: rgba(0, 243, 255, 0.15);
+  color: var(--cyan-accent);
+}
+.book-mode-btn.active.text-buy {
+  background: rgba(0, 229, 153, 0.15);
+  color: var(--buy-green);
+}
+.book-mode-btn.active.text-sell {
+  background: rgba(255, 69, 96, 0.15);
+  color: var(--sell-red);
+}
+
 /* ─── Chart ──────────────────────────────────────────────────────── */
 .chart-container {
   display: flex;

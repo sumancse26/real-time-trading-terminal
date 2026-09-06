@@ -445,3 +445,42 @@
 - Prevents unbounded growth of the active open orders table.
 - Gives traders full auditability over terminal execution history, cancellations, and order lifecycles with distinct visual status accents.
 
+---
+
+# Phase 10 — Technical Decisions
+
+## TD-042 — Dynamic Depth Aggregation & Tick Precision Bucketization
+
+**Decision**: Created pure utility `aggregateOrderBookLevels` that bins price levels according to user-selected tick precision (`0.1`, `0.5`, `1.0`, `5.0`, `10.0`), applying `Math.floor` for bid levels and `Math.ceil` for ask levels, summing volume within buckets, and re-computing cumulative running depth.
+
+**Rationale**:
+- Allows traders to adjust level granularity in volatile markets to view macro liquidity clusters without increasing network payload.
+- Keeps raw websocket L2 stream untouched while performing aggregation client-side in a memoized pipeline.
+
+---
+
+## TD-043 — Real-Time Spread, Percentage, and Mid-Price Derivation
+
+**Decision**: Computed top-of-book best ask ($a_0$), best bid ($b_0$), absolute spread ($a_0 - b_0$), spread percentage ($\frac{a_0 - b_0}{a_0} \times 100\%$), and mid-market price ($\frac{a_0 + b_0}{2}$) within the memoized book selector.
+
+**Rationale**:
+- Provides instantaneous market liquidity signals and execution slippage indicators.
+- Anchors the dual-sided order book visualizer around the real-time spread bar.
+
+---
+
+## TD-044 — Multi-Mode Order Book Viewport (Dual, Asks-Only, Bids-Only)
+
+**Decision**: Supported configurable view modes (`both`, `asks`, `bids`) alongside configurable depth levels (`5`, `10`, `15`, `20`), automatically re-orienting the ladder (highest ask at top down to spread in dual mode; or expanded single-side sell/buy depth).
+
+**Rationale**:
+- Accommodates different trading workflows: scalp traders analyzing immediate dual spread vs position traders assessing long-term sell/buy walls.
+
+---
+
+## TD-045 — Zero-Latency Click-to-Trade Price & Size Prefill Bridge
+
+**Decision**: Bound each `OrderBookRow` click/keyboard interaction to `setOrderFormPrefill({ price, quantity })` in `useMarketStore`, which synchronizes instantly with `OrderEntryForm` inputs.
+
+**Rationale**:
+- Eliminates manual typing latency during fast market movements, enabling traders to click any order book depth level and place limit/market orders with one click.

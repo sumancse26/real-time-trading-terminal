@@ -18,12 +18,16 @@ export interface MarketState {
   sortField: WatchlistSortField
   sortDirection: SortDirection
 
+  // Order Entry prefill bridge
+  orderFormPrefill: { price?: number; quantity?: number; timestamp?: number } | null
+
   // Actions
   setSelectedSymbol: (symbol: string) => void
   setSearchQuery: (query: string) => void
   setCategory: (category: WatchlistCategory) => void
   setSort: (field: WatchlistSortField) => void
   toggleFavorite: (symbol: string) => void
+  setOrderFormPrefill: (prefill: { price?: number; quantity?: number } | null) => void
   setTickers: (tickers: MarketTicker[]) => void
   updateTicker: (ticker: MarketTicker) => void
   updatePrice: (
@@ -138,10 +142,17 @@ export const useMarketStore = create<MarketState>((set, get) => ({
   category: 'ALL',
   sortField: null,
   sortDirection: 'desc',
+  orderFormPrefill: null,
 
   setSelectedSymbol: (symbol: string) => {
     if (get().selectedSymbol === symbol) return
     set({ selectedSymbol: symbol })
+  },
+
+  setOrderFormPrefill: (prefill: { price?: number; quantity?: number } | null) => {
+    set({
+      orderFormPrefill: prefill ? { ...prefill, timestamp: Date.now() } : null,
+    })
   },
 
   setSearchQuery: (query: string) => {
@@ -308,3 +319,10 @@ export const useWatchlistSortField = (): WatchlistSortField =>
 
 export const useWatchlistSortDirection = (): SortDirection =>
   useMarketStore(state => state.sortDirection)
+
+export const useOrderFormPrefill = () =>
+  useMarketStore(state => state.orderFormPrefill)
+
+export const useSetOrderFormPrefill = () =>
+  useMarketStore(state => state.setOrderFormPrefill)
+
