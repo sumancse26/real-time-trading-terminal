@@ -403,9 +403,45 @@
 **Rationale**:
 - Ensures keyboard navigability, screen reader compatibility, and clear input validation state announcements across high-frequency trading interactions.
 
+---
 
+# Phase 9 — Technical Decisions
 
+## TD-038 — Optimistic Order Lifecycle State Machine & Reversible Mutations
 
+**Decision**: Added `PENDING` to the `OrderStatus` domain model (`'PENDING' | 'NEW' | 'PARTIALLY_FILLED' | 'FILLED' | 'CANCELLED' | 'REJECTED' | 'EXPIRED'`). `useCreateOrderMutation` and `useCancelOrderMutation` use TanStack Query's `onMutate` hook to optimistically insert a temporary order (prefixed `temp-ord-*`) or remove a cancelled order from the cache immediately before the network request resolves.
 
+**Rationale**:
+- Provides zero-latency visual confirmation to the trader, eliminating interface sluggishness under fluctuating network latencies.
+- The lifecycle badge displays a pulsating yellow `PENDING` badge while in flight, transitioning smoothly to `NEW` / `FILLED` on server confirmation.
 
+---
+
+## TD-039 — Client-Side Idempotency & Duplicate Submission Protection
+
+**Decision**: Implemented an in-flight signature debounce cache (`symbol:side:type:price:quantity`) with a 500ms safety window and `clientOrderId` tracking in the API client layer.
+
+**Rationale**:
+- Prevents double-clicking or rapid repeated keypresses from submitting duplicate market/limit orders to the exchange engine.
+- Rejects identical in-flight duplicates immediately with `ValidationError: Duplicate order rejected`, safeguarding user margin.
+
+---
+
+## TD-040 — Deterministic Cache Snapshotting & Rollback on Network / Server Rejection
+
+**Decision**: `onMutate` captures complete snapshots of both symbol-scoped (`['orders', 'open', symbol]`) and global (`['orders', 'open']`) query caches. In `onError`, the cache is synchronously restored to the exact snapshot state before triggering toast/error notifications.
+
+**Rationale**:
+- Guarantees cache consistency and prevents "phantom orders" or stale entries from lingering in the UI after server errors or rejected requests.
+- Reconciles `tempId` seamlessly with the confirmed server order ID on `onSuccess`.
+
+---
+
+## TD-041 — Order History Query Partitioning & Status Badge Matrix
+
+**Decision**: Added `getOrderHistory` and `useOrderHistoryQuery` endpoints to partition active working orders (`NEW`, `PENDING`, `PARTIALLY_FILLED`) from completed/historical orders (`FILLED`, `CANCELLED`, `REJECTED`, `EXPIRED`). Enhanced the Positions widget with an Order History tab and color-coded status badges.
+
+**Rationale**:
+- Prevents unbounded growth of the active open orders table.
+- Gives traders full auditability over terminal execution history, cancellations, and order lifecycles with distinct visual status accents.
 

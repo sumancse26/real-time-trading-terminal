@@ -20,6 +20,7 @@ export const queryKeys = {
   orders: {
     all: ['orders'] as const,
     open: (symbol?: string) => [...queryKeys.orders.all, 'open', symbol] as const,
+    history: (symbol?: string) => [...queryKeys.orders.all, 'history', symbol] as const,
   },
   positions: {
     all: ['positions'] as const,

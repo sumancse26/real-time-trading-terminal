@@ -19,4 +19,7 @@ export const orderApi = {
     signal?: AbortSignal
   ): Promise<{ success: boolean; cancelledCount: number }> =>
     mockApiClient.cancelAllOrders(symbol, signal),
+
+  getOrderHistory: (symbol?: string, signal?: AbortSignal): Promise<ActiveOrder[]> =>
+    mockApiClient.getOrderHistory(symbol, signal),
 }

@@ -5,7 +5,7 @@ export type { Position, PositionSide, MarginMode } from './position'
 
 export type OrderType = 'LIMIT' | 'MARKET' | 'STOP_LIMIT' | 'STOP_MARKET' | 'TRAILING_STOP'
 export type TimeInForce = 'GTC' | 'IOC' | 'FOK' | 'POST_ONLY'
-export type OrderStatus = 'NEW' | 'PARTIALLY_FILLED' | 'FILLED' | 'CANCELLED' | 'REJECTED' | 'EXPIRED'
+export type OrderStatus = 'PENDING' | 'NEW' | 'PARTIALLY_FILLED' | 'FILLED' | 'CANCELLED' | 'REJECTED' | 'EXPIRED'
 
 export interface ActiveOrder {
   id: string

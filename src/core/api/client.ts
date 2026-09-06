@@ -54,6 +54,44 @@ export class MockHttpClient {
     },
   ]
 
+  private orderHistory: ActiveOrder[] = [
+    {
+      id: 'ord-hist-99',
+      symbol: 'BTC/USDT',
+      side: 'buy',
+      type: 'LIMIT',
+      price: 63100.0,
+      quantity: 1.0,
+      filledQuantity: 1.0,
+      status: 'FILLED',
+      timestamp: 1716900000000,
+    },
+    {
+      id: 'ord-hist-98',
+      symbol: 'ETH/USDT',
+      side: 'sell',
+      type: 'MARKET',
+      price: 3510.0,
+      quantity: 4.0,
+      filledQuantity: 4.0,
+      status: 'FILLED',
+      timestamp: 1716890000000,
+    },
+    {
+      id: 'ord-hist-97',
+      symbol: 'SOL/USDT',
+      side: 'buy',
+      type: 'LIMIT',
+      price: 155.0,
+      quantity: 20.0,
+      filledQuantity: 0.0,
+      status: 'CANCELLED',
+      timestamp: 1716880000000,
+    },
+  ]
+
+  private recentOrderSignatures = new Map<string, number>()
+
   private positions: Position[] = [
     {
       id: 'pos-1',
@@ -417,6 +455,17 @@ export class MockHttpClient {
     return [...this.orders]
   }
 
+  public async getOrderHistory(
+    symbol?: string,
+    signal?: AbortSignal
+  ): Promise<ActiveOrder[]> {
+    await this.simulateNetwork('getOrderHistory', signal)
+    if (symbol) {
+      return this.orderHistory.filter(o => o.symbol === symbol)
+    }
+    return [...this.orderHistory]
+  }
+
   public async createOrder(
     req: CreateOrderRequest,
     signal?: AbortSignal
@@ -429,10 +478,22 @@ export class MockHttpClient {
       throw new ValidationError('Price is required for LIMIT orders')
     }
 
+    // Duplicate Order Submission Guard (Idempotency check within 500ms or identical clientOrderId)
+    const orderSignature = req.clientOrderId
+      ? `client-${req.clientOrderId}`
+      : `${req.symbol}:${req.side}:${req.type}:${req.price}:${req.quantity}`
+    const lastSubmission = this.recentOrderSignatures.get(orderSignature)
+    const now = Date.now()
+
+    if (lastSubmission && now - lastSubmission < 500) {
+      throw new ValidationError('Duplicate order rejected: an identical order is currently processing')
+    }
+    this.recentOrderSignatures.set(orderSignature, now)
+
     await this.simulateNetwork('createOrder', signal)
 
     const newOrder: ActiveOrder = {
-      id: `ord-${Date.now()}`,
+      id: `ord-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       symbol: req.symbol,
       side: req.side,
       type: req.type,
@@ -461,7 +522,13 @@ export class MockHttpClient {
 
     const idx = this.orders.findIndex(o => o.id === req.orderId)
     if (idx !== -1) {
-      this.orders.splice(idx, 1)
+      const [cancelled] = this.orders.splice(idx, 1)
+      if (cancelled) {
+        this.orderHistory.unshift({
+          ...cancelled,
+          status: 'CANCELLED',
+        })
+      }
     }
 
     return { success: true, orderId: req.orderId }
