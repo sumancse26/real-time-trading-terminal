@@ -1,11 +1,14 @@
 import React from 'react'
 import { useSelectedTicker } from '@/core/store/useMarketStore'
+import { useConnectionStatus, useConnectionLatency } from '@/core/store/useConnectionStore'
 import { Badge } from '@/components/ui/Badge'
 import { formatPrice, formatPercent, formatVolume, formatQuantity } from '@/utils/formatters'
-import { Activity, ShieldCheck, Zap, Bell, Volume2, Wifi } from 'lucide-react'
+import { Activity, ShieldCheck, Zap, Bell, Volume2, Wifi, WifiOff } from 'lucide-react'
 
 export const TerminalHeader: React.FC = () => {
   const ticker = useSelectedTicker()
+  const connectionStatus = useConnectionStatus()
+  const latency = useConnectionLatency()
 
   const isPositive = (ticker?.priceChangePercent24h ?? 0) >= 0
 
@@ -17,6 +20,48 @@ export const TerminalHeader: React.FC = () => {
   const low24h = ticker?.low24h ?? 62410.0
   const volume24h = ticker?.volume24h ?? 42890.45
   const turnover24h = ticker?.turnover24h ?? 2758410290
+
+  const renderConnectionBadge = () => {
+    switch (connectionStatus) {
+      case 'CONNECTED':
+        return (
+          <Badge variant="cyan" className="connection-badge">
+            <Wifi size={12} className="inline mr-1" />
+            WS LIVE ({latency}ms)
+          </Badge>
+        )
+      case 'RECONNECTING':
+        return (
+          <Badge variant="warning" className="connection-badge">
+            <Wifi size={12} className="inline mr-1" />
+            RECONNECTING…
+          </Badge>
+        )
+      case 'CONNECTING':
+        return (
+          <Badge variant="neutral" className="connection-badge">
+            <Wifi size={12} className="inline mr-1" />
+            CONNECTING…
+          </Badge>
+        )
+      case 'DEGRADED':
+        return (
+          <Badge variant="warning" className="connection-badge">
+            <Wifi size={12} className="inline mr-1" />
+            WS DEGRADED
+          </Badge>
+        )
+      case 'ERROR':
+      case 'DISCONNECTED':
+      default:
+        return (
+          <Badge variant="sell" className="connection-badge">
+            <WifiOff size={12} className="inline mr-1" />
+            WS OFFLINE
+          </Badge>
+        )
+    }
+  }
 
   return (
     <header className="terminal-header" data-testid="terminal-header">
@@ -67,10 +112,7 @@ export const TerminalHeader: React.FC = () => {
 
       <div className="header-right">
         <div className="status-indicators">
-          <Badge variant="cyan" className="connection-badge">
-            <Wifi size={12} className="inline mr-1" />
-            WS LIVE (12ms)
-          </Badge>
+          {renderConnectionBadge()}
           <Badge variant="neutral" className="engine-badge">
             <Activity size={12} className="inline mr-1" />
             L2 ORDERBOOK

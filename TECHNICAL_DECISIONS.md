@@ -227,5 +227,48 @@
 - Provides instant UI responsiveness when placing orders or clicking Market Close.
 - Invalidating parent query keys ensures subsequent background reconciliation guarantees eventual consistency with backend state.
 
+---
+
+# Phase 5 — Technical Decisions
+
+## TD-021 — WebSocket Connection State Machine & Auto-Resubscription
+
+**Decision**: The `WebSocketService` in `src/core/websocket/wsService.ts` maintains connection states (`DISCONNECTED`, `CONNECTING`, `CONNECTED`, `RECONNECTING`, `DEGRADED`, `ERROR`) and an `activeSubscriptions` set. On reconnection, it automatically aggregates all active channel:symbol pairs and resubscribes with the server.
+
+**Rationale**:
+- Transparent connection recovery ensures UI widgets (order book, trades, charts) automatically regain live feeds without requiring manual component unmount/remount cycles.
+- Centralizing subscription state inside the service decouples transport reconnection from UI component render trees.
+
+---
+
+## TD-022 — Safe Validation & Fault-Tolerant Unknown Wire Ingestion
+
+**Decision**: All incoming WebSocket payloads are treated as `unknown` and parsed through `parseWsServerMessage()`. Corrupted JSON or unexpected payloads notify error listeners and update telemetry without throwing unhandled exceptions or disconnecting the client.
+
+**Rationale**:
+- Exchange WebSocket feeds frequently inject undocumented fields or occasional corrupted byte fragments.
+- Isolating parsing errors preserves continuous uptime and prevents terminal crashes under hostile network conditions.
+
+---
+
+## TD-023 — Bi-directional Heartbeat Liveness & Round-Trip Latency Tracking
+
+**Decision**: `WebSocketService` initiates periodic ping actions and calculates round-trip time (RTT) upon pong arrival, updating the global `useConnectionStore` and resetting a dead-connection watchdog timer.
+
+**Rationale**:
+- TCP half-open connections (silent socket deadlocks) are detected within `heartbeatTimeoutMs`, immediately triggering `DEGRADED` status and auto-reconnection.
+- Real-time latency (ms) is broadcast directly to the Header status indicators for user visibility.
+
+---
+
+## TD-024 — Typed Multi-Channel Event Dispatcher
+
+**Decision**: Support both catch-all `onMessage(handler)` and type-narrowed `on<T>('ticker' | 'trade' | 'book_snapshot', handler)` event listeners returning idempotent unsubscribe callbacks.
+
+**Rationale**:
+- Eliminates repeated manual discriminated union type checking in downstream subscriber components.
+- Cleanup callbacks prevent listener memory leaks when React components mount and unmount.
+
+
 
 
