@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo, memo } from 'react'
 import {
   usePositionsQuery,
   useOpenOrdersQuery,
@@ -7,10 +7,13 @@ import {
 } from '@/core/query'
 import { useOrderHistoryQuery } from '@/core/query/hooks/useOrderQueries'
 import { useAccountSummaryQuery } from '@/core/query/hooks/useAccountQueries'
+import { useTicker } from '@/core/store/useMarketStore'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
+import { NumberFlash } from '@/components/ui/NumberFlash'
+import { calculatePositionMetrics } from '@/utils/positionCalculations'
 import {
   formatPrice,
   formatPercent,
@@ -19,6 +22,7 @@ import {
   formatTimestamp,
 } from '@/utils/formatters'
 import type { OrderStatus } from '@/types/order'
+import type { Position } from '@/types/position'
 import {
   Wallet,
   Briefcase,
@@ -28,6 +32,87 @@ import {
   AlertCircle,
   Clock,
 } from 'lucide-react'
+
+export interface PositionRowProps {
+  position: Position
+  isClosing: boolean
+  onClose: (positionId: string) => void
+}
+
+/**
+ * Selective Subscription & Memoization:
+ * PositionRow subscribes only to the ticker of its specific position.symbol.
+ * Unaffected positions across different symbols do not re-render when prices change.
+ */
+export const PositionRow: React.FC<PositionRowProps> = memo(({ position, isClosing, onClose }) => {
+  const liveTicker = useTicker(position.symbol)
+  const currentPrice = liveTicker?.lastPrice ?? position.markPrice
+
+  const metrics = useMemo(() => {
+    return calculatePositionMetrics(
+      position.side,
+      position.size,
+      position.entryPrice,
+      currentPrice,
+      position.leverage,
+      position.maintenanceMargin
+    )
+  }, [
+    position.side,
+    position.size,
+    position.entryPrice,
+    currentPrice,
+    position.leverage,
+    position.maintenanceMargin,
+  ])
+
+  const isLong = position.side === 'LONG'
+  const isProfitable = metrics.unrealizedPnl >= 0
+
+  return (
+    <tr key={position.id} className="position-row" data-testid={`pos-row-${position.symbol}`}>
+      <td>
+        <div className="flex items-center gap-1.5 font-bold">
+          <span>{position.symbol}</span>
+          <Badge variant={isLong ? 'buy' : 'sell'}>
+            {position.side} {position.leverage}x
+          </Badge>
+        </div>
+      </td>
+      <td className="font-mono">{formatQuantity(position.size, 2)}</td>
+      <td className="font-mono">${formatPrice(position.entryPrice)}</td>
+      <td className="font-mono">
+        <NumberFlash value={currentPrice} format={(v) => `$${formatPrice(v)}`} />
+      </td>
+      <td className="font-mono">${formatPrice(metrics.marketValue)}</td>
+      <td className="font-mono text-warning">${formatPrice(metrics.liquidationPrice)}</td>
+      <td className="font-mono">${formatPrice(metrics.margin)}</td>
+      <td>
+        <div className={`font-mono font-bold ${isProfitable ? 'text-buy' : 'text-sell'}`}>
+          {isProfitable ? '+' : ''}${formatPrice(metrics.unrealizedPnl)} (
+          {formatPercent(metrics.unrealizedPnlPercent, {
+            includeSign: true,
+            decimals: 2,
+          })}
+          )
+        </div>
+      </td>
+      <td className="text-right">
+        <Button
+          variant="secondary"
+          size="sm"
+          className="btn-close-pos"
+          isLoading={isClosing}
+          onClick={() => onClose(position.id)}
+        >
+          Market Close
+        </Button>
+      </td>
+    </tr>
+  )
+})
+
+PositionRow.displayName = 'PositionRow'
 
 export const PositionsView: React.FC = () => {
   const [tab, setTab] = useState<'positions' | 'orders' | 'history'>('positions')
@@ -170,13 +255,14 @@ export const PositionsView: React.FC = () => {
                 No active positions. Open a position via Order Entry.
               </div>
             ) : (
-              <table className="terminal-table">
+              <table className="terminal-table" data-testid="positions-table">
                 <thead>
                   <tr>
                     <th>CONTRACT</th>
                     <th>SIZE</th>
                     <th>ENTRY PRICE</th>
                     <th>MARK PRICE</th>
+                    <th>VALUE</th>
                     <th>LIQ. PRICE</th>
                     <th>MARGIN</th>
                     <th>UNREALIZED PnL (ROE %)</th>
@@ -184,52 +270,18 @@ export const PositionsView: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {positions.map(pos => {
-                    const isLong = pos.side === 'LONG'
-                    const isProfitable = pos.unrealizedPnl >= 0
+                  {positions.map((pos) => {
                     const isClosing =
                       closePositionMutation.isPending &&
                       closePositionMutation.variables === pos.id
 
                     return (
-                      <tr key={pos.id} className="position-row">
-                        <td>
-                          <div className="flex items-center gap-1.5 font-bold">
-                            <span>{pos.symbol}</span>
-                            <Badge variant={isLong ? 'buy' : 'sell'}>
-                              {pos.side} {pos.leverage}x
-                            </Badge>
-                          </div>
-                        </td>
-                        <td className="font-mono">{formatQuantity(pos.size, 2)}</td>
-                        <td className="font-mono">${formatPrice(pos.entryPrice)}</td>
-                        <td className="font-mono">${formatPrice(pos.markPrice)}</td>
-                        <td className="font-mono text-warning">${formatPrice(pos.liquidationPrice)}</td>
-                        <td className="font-mono">${formatPrice(pos.margin)}</td>
-                        <td>
-                          <div
-                            className={`font-mono font-bold ${isProfitable ? 'text-buy' : 'text-sell'}`}
-                          >
-                            {isProfitable ? '+' : ''}${formatPrice(pos.unrealizedPnl)} (
-                            {formatPercent(pos.unrealizedPnlPercent, {
-                              includeSign: true,
-                              decimals: 2,
-                            })}
-                            )
-                          </div>
-                        </td>
-                        <td className="text-right">
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="btn-close-pos"
-                            isLoading={isClosing}
-                            onClick={() => closePositionMutation.mutate(pos.id)}
-                          >
-                            Market Close
-                          </Button>
-                        </td>
-                      </tr>
+                      <PositionRow
+                        key={pos.id}
+                        position={pos}
+                        isClosing={isClosing}
+                        onClose={(id) => closePositionMutation.mutate(id)}
+                      />
                     )
                   })}
                 </tbody>

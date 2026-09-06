@@ -9,6 +9,24 @@ export function usePositionsQuery() {
   })
 }
 
+export function useCreatePositionMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (req: {
+      symbol: string
+      side: 'LONG' | 'SHORT'
+      size: number
+      entryPrice: number
+      leverage?: number
+    }) => positionApi.createPosition(req),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.positions.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.account.all })
+    },
+  })
+}
+
 export function useClosePositionMutation() {
   const queryClient = useQueryClient()
 

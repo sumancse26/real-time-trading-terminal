@@ -476,11 +476,53 @@
 **Rationale**:
 - Accommodates different trading workflows: scalp traders analyzing immediate dual spread vs position traders assessing long-term sell/buy walls.
 
----
-
 ## TD-045 — Zero-Latency Click-to-Trade Price & Size Prefill Bridge
 
 **Decision**: Bound each `OrderBookRow` click/keyboard interaction to `setOrderFormPrefill({ price, quantity })` in `useMarketStore`, which synchronizes instantly with `OrderEntryForm` inputs.
 
 **Rationale**:
 - Eliminates manual typing latency during fast market movements, enabling traders to click any order book depth level and place limit/market orders with one click.
+
+---
+
+# Phase 11 — Technical Decisions
+
+## TD-046 — Pure Derivatives P&L Calculation Engine with Isolated Liquidation Derivation
+
+**Decision**: Implemented pure calculation utility `calculatePositionMetrics` computing notional market value ($size \times markPrice$), required margin ($\frac{size \times entryPrice}{leverage}$), unrealized PnL (Long: $(markPrice - entryPrice) \times size$, Short: $(entryPrice - markPrice) \times size$), ROE % ($\frac{unrealizedPnl}{margin} \times 100\%$), and dynamic liquidation threshold with a $0.5\%$ maintenance margin rate.
+
+**Rationale**:
+- Decouples financial derivative formulas from React component state, enabling 100% deterministic test coverage across long/short positions, profit/loss states, and boundary conditions.
+- Ensures zero-division safety and guards against negative or non-finite inputs.
+
+---
+
+## TD-047 — Selective Fine-Grained Position Row Subscriptions & Memoization
+
+**Decision**: Segmented the Positions table into atomic `PositionRow` components wrapped in `React.memo` and bound to fine-grained atomic selectors `useTicker(position.symbol)`.
+
+**Rationale**:
+- High-frequency market data updates for `BTC/USDT` trigger re-renders *only* for the `BTC/USDT` row.
+- Unaffected rows (`ETH/USDT`, `SOL/USDT`, etc.) maintain referential equality and do not re-render or recalculate, minimizing React CPU cycles under 1,000 updates/sec load.
+
+---
+
+## TD-048 — Weighted Average Entry Price on Position Increases & Partial PnL Realization
+
+**Decision**: Implemented `recalculatePositionOnFill` handling all position lifecycle transitions:
+1. Position Increase: Calculates volume-weighted average entry price ($\frac{s_1 \cdot p_1 + s_2 \cdot p_2}{s_1 + s_2}$).
+2. Partial Close: Realizes PnL on closed quantity while keeping entry price unchanged on remaining size.
+3. Position Flip: Realizes PnL on full existing size and opens reverse position for remaining fill quantity.
+
+**Rationale**:
+- Faithfully mirrors perpetual futures exchange clearing logic (e.g. Binance/Bybit) without state desynchronization.
+
+---
+
+## TD-049 — Multi-Symbol Market Tick Batching with Referential Equality Preservation
+
+**Decision**: `updatePositionsFromMarketTicks` maps over active positions and updates only positions whose symbols match incoming price ticks, leaving untouched positions referentially identical (`===`).
+
+**Rationale**:
+- Guarantees shallow equality checks in React.memo and TanStack Query succeed for all untouched position records.
+

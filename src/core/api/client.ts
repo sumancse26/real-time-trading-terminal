@@ -560,6 +560,52 @@ export class MockHttpClient {
     return [...this.positions]
   }
 
+  public async createPosition(
+    req: {
+      symbol: string
+      side: 'LONG' | 'SHORT'
+      size: number
+      entryPrice: number
+      leverage?: number
+    },
+    signal?: AbortSignal
+  ): Promise<Position> {
+    if (!req.symbol || req.size <= 0 || req.entryPrice <= 0) {
+      throw new ValidationError('Invalid position parameters: symbol, size > 0, and entryPrice > 0 are required')
+    }
+
+    await this.simulateNetwork('createPosition', signal)
+
+    const leverage = req.leverage ?? 20
+    const margin = Number(((req.size * req.entryPrice) / leverage).toFixed(2))
+    const mmr = 0.005
+    const liquidationPrice =
+      req.side === 'LONG'
+        ? Math.max(0, Number((req.entryPrice * (1 - 1 / leverage + mmr)).toFixed(2)))
+        : Number((req.entryPrice * (1 + 1 / leverage - mmr)).toFixed(2))
+
+    const newPos: Position = {
+      id: `pos-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      symbol: req.symbol,
+      side: req.side,
+      size: req.size,
+      entryPrice: req.entryPrice,
+      avgPrice: req.entryPrice,
+      markPrice: req.entryPrice,
+      marketValue: Number((req.size * req.entryPrice).toFixed(2)),
+      liquidationPrice,
+      unrealizedPnl: 0,
+      unrealizedPnlPercent: 0,
+      margin,
+      leverage,
+      realizedPnl: 0,
+      updatedAt: Date.now(),
+    }
+
+    this.positions.push(newPos)
+    return { ...newPos }
+  }
+
   public async closePosition(
     positionId: string,
     signal?: AbortSignal

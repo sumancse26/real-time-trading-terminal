@@ -7,7 +7,9 @@ export interface Position {
   side: 'LONG' | 'SHORT'
   size: number
   entryPrice: number
+  avgPrice?: number
   markPrice: number
+  marketValue?: number
   liquidationPrice: number
   unrealizedPnl: number
   unrealizedPnlPercent: number
