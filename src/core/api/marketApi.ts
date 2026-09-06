@@ -1,7 +1,7 @@
 import { mockApiClient } from './client'
 import type { MarketTicker, TradeTick } from '@/types/market'
 import type { OrderBookSnapshot } from '@/types/orderbook'
-import type { Candle, KlineInterval } from '@/types/chart'
+import type { Candle, KlineInterval, ChartTimeframe } from '@/types/chart'
 import type { SymbolInfo } from '@/types/symbol'
 
 export const marketApi = {
@@ -24,11 +24,11 @@ export const marketApi = {
 
   getKlines: (
     symbol = 'BTC/USDT',
-    interval: KlineInterval = '1m',
-    limit = 30,
+    intervalOrTimeframe: KlineInterval | ChartTimeframe = '1D',
+    limit = 35,
     signal?: AbortSignal
   ): Promise<Candle[]> =>
-    mockApiClient.getKlines(symbol, interval, limit, signal),
+    mockApiClient.getKlines(symbol, intervalOrTimeframe, limit, signal),
 
   getSymbols: (signal?: AbortSignal): Promise<SymbolInfo[]> =>
     mockApiClient.getSymbols(signal),

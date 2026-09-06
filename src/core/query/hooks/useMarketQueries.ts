@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { marketApi } from '@/core/api/marketApi'
-import type { KlineInterval } from '@/types/chart'
+import type { KlineInterval, ChartTimeframe } from '@/types/chart'
 
 export const queryKeys = {
   market: {
@@ -11,8 +11,10 @@ export const queryKeys = {
       [...queryKeys.market.all, 'orderBook', symbol, limit] as const,
     trades: (symbol: string, limit?: number) =>
       [...queryKeys.market.all, 'trades', symbol, limit] as const,
-    klines: (symbol: string, interval: KlineInterval, limit?: number) =>
+    klines: (symbol: string, interval: KlineInterval | ChartTimeframe, limit?: number) =>
       [...queryKeys.market.all, 'klines', symbol, interval, limit] as const,
+    chart: (symbol: string, timeframe: ChartTimeframe) =>
+      [...queryKeys.market.all, 'chart', symbol, timeframe] as const,
     symbols: () => [...queryKeys.market.all, 'symbols'] as const,
   },
   orders: {
@@ -52,11 +54,29 @@ export function useRecentTradesQuery(symbol: string, limit = 20) {
   })
 }
 
-export function useKlinesQuery(symbol: string, interval: KlineInterval = '1m', limit = 30) {
+export function useKlinesQuery(
+  symbol: string,
+  interval: KlineInterval | ChartTimeframe = '1m',
+  limit = 30
+) {
   return useQuery({
     queryKey: queryKeys.market.klines(symbol, interval, limit),
     queryFn: ({ signal }) => marketApi.getKlines(symbol, interval, limit, signal),
     enabled: Boolean(symbol),
+  })
+}
+
+export function useChartCandlesQuery(
+  symbol: string,
+  timeframe: ChartTimeframe = '1D',
+  limit = 35
+) {
+  return useQuery({
+    queryKey: queryKeys.market.chart(symbol, timeframe),
+    queryFn: ({ signal }) => marketApi.getKlines(symbol, timeframe, limit, signal),
+    enabled: Boolean(symbol),
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
   })
 }
 

@@ -321,6 +321,49 @@
 **Rationale**:
 - Allows developers and QA to live-test the direct contrast between unbuffered rendering (high CPU load, dropped frames, queue lag) and batched buffering (steady 60 FPS, silky smooth interaction) at 100, 500, and 1000 updates/sec.
 
+---
+
+# Phase 7 — Technical Decisions
+
+## TD-030 — TanStack Query Historical Chart Data & Timeframe Range Partitioning
+
+**Decision**: Load historical OHLCV candlestick series through `useChartCandlesQuery(symbol, timeframe)` with partitioned query keys `['market', 'chart', symbol, timeframe]`, configured with `staleTime: 60_000` and `gcTime: 5 * 60_000`.
+
+**Rationale**:
+- Caching historical candle data in TanStack Query prevents unnecessary network refetches when switching back and forth between timeframes (`1D`, `1W`, `1M`, `3M`, `1Y`) or symbols.
+- Timeframe-keyed queries guarantee independent caching per resolution without cache collision between daily, weekly, or intraday intervals.
+
+---
+
+## TD-031 — Decoupled 2-Layer Chart Architecture (Static Historical vs Dynamic Live)
+
+**Decision**: Separated the chart rendering into a memoized `HistoricalLayer` (`React.memo`) for the static 35+ historical candlesticks, gridlines, axes, and EMA curves, and an isolated dynamic `LiveCandleLayer` / floating price line for high-frequency live ticks.
+
+**Rationale**:
+- Rebuilding 35+ complex SVG candlestick nodes, wick lines, gradient fills, and mathematical EMA bezier curves on every 60Hz price tick causes heavy DOM churn and layout thrashing.
+- The memoized layer only recalculates when the underlying historical dataset or timeframe changes. Real-time ticks only modify the rightmost active candle and the horizontal price line.
+
+---
+
+## TD-032 — Real-time Live Price Coalescing on Active Candle
+
+**Decision**: Live ticker price ticks (`useTicker(selectedSymbol)`) mutate only the active (last) candle's `close`, `high` (`Math.max(high, price)`), and `low` (`Math.min(low, price)`) within a lightweight `useMemo` wrapper without triggering a network refetch.
+
+**Rationale**:
+- Merging real-time stream ticks directly into the active candle provides instant, sub-millisecond price responsiveness while keeping historical data intact.
+- Eliminates stale chart states between polling intervals and avoids polling loops entirely.
+
+---
+
+## TD-033 — Declarative Loading, Error, and Empty Overlays with Retry Invalidation
+
+**Decision**: Integrated dedicated overlay states (`chart-loading-overlay`, `chart-error-overlay`, `chart-empty-overlay`) within the chart container, including a manual "Retry Loading Chart" trigger bound to `refetch()`.
+
+**Rationale**:
+- Provides resilient error recovery when simulated network failures or transient disconnects occur.
+- Maintains visual terminal stability without breaking surrounding grid cell layouts during async loading or network outages.
+
+
 
 
 

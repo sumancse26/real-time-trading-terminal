@@ -7,7 +7,7 @@ import {
 } from './errors'
 import type { MarketTicker, TradeTick } from '@/types/market'
 import type { OrderBookSnapshot, PriceLevel } from '@/types/orderbook'
-import type { Candle, KlineInterval } from '@/types/chart'
+import type { Candle, KlineInterval, ChartTimeframe } from '@/types/chart'
 import type { ActiveOrder, CreateOrderRequest, CancelOrderRequest } from '@/types/order'
 import type { Position } from '@/types/position'
 import type { AccountSummary } from '@/types/account'
@@ -307,31 +307,69 @@ export class MockHttpClient {
 
   public async getKlines(
     symbol = 'BTC/USDT',
-    interval: KlineInterval = '1m',
-    limit = 30,
+    intervalOrTimeframe: KlineInterval | ChartTimeframe = '1D',
+    limit = 35,
     signal?: AbortSignal
   ): Promise<Candle[]> {
-    await this.simulateNetwork(`getKlines-${symbol}-${interval}`, signal)
-    const basePrice = symbol.startsWith('BTC') ? 64000.0 : 3400.0
+    await this.simulateNetwork(`getKlines-${symbol}-${intervalOrTimeframe}`, signal)
+
+    const basePriceMap: Record<string, number> = {
+      'BTC/USDT': 64250.0,
+      'ETH/USDT': 3445.0,
+      'SOL/USDT': 168.42,
+      'BNB/USDT': 608.3,
+      'ARB/USDT': 1.245,
+      'DOGE/USDT': 0.1684,
+    }
+    const basePrice = basePriceMap[symbol] ?? 64250.0
+    const precision = basePrice < 2 ? 4 : 2
+    const volatility = basePrice * 0.008
+
+    const intervalMsMap: Record<string, number> = {
+      '1D': 15 * 60 * 1000,
+      '1W': 60 * 60 * 1000,
+      '1M': 4 * 60 * 60 * 1000,
+      '3M': 24 * 60 * 60 * 1000,
+      '1Y': 7 * 24 * 60 * 60 * 1000,
+      '1m': 60 * 1000,
+      '5m': 5 * 60 * 1000,
+      '15m': 15 * 60 * 1000,
+      '1h': 60 * 60 * 1000,
+      '4h': 4 * 60 * 60 * 1000,
+      '1d': 24 * 60 * 60 * 1000,
+    }
+    const intervalMs = intervalMsMap[intervalOrTimeframe] ?? (15 * 60 * 1000)
     const now = Date.now()
-    const intervalMs = 60_000
 
-    return Array.from({ length: limit }).map((_, idx) => {
-      const open = basePrice + Math.sin(idx) * 150
-      const close = open + (Math.random() - 0.48) * 80
-      const high = Math.max(open, close) + Math.random() * 40
-      const low = Math.min(open, close) - Math.random() * 40
+    let runningPrice = basePrice * (1 - (limit * 0.003))
+    const candles: Candle[] = []
 
-      return {
-        time: now - (limit - idx) * intervalMs,
-        open: Number(open.toFixed(2)),
-        high: Number(high.toFixed(2)),
-        low: Number(low.toFixed(2)),
-        close: Number(close.toFixed(2)),
-        volume: Number((Math.random() * 80 + 20).toFixed(2)),
-        isClosed: true,
-      }
-    })
+    for (let idx = 0; idx < limit; idx++) {
+      const time = now - (limit - 1 - idx) * intervalMs
+      const wave = Math.sin((idx / limit) * Math.PI * 3) * volatility * 1.5
+      const trend = ((idx / limit) - 0.5) * volatility * 2
+      const delta = (Math.random() - 0.48) * volatility * 1.2 + (wave * 0.2) + (trend * 0.1)
+
+      const open = Number(runningPrice.toFixed(precision))
+      const close = Number(Math.max(0.0001, runningPrice + delta).toFixed(precision))
+      const high = Number((Math.max(open, close) + Math.random() * volatility * 0.6).toFixed(precision))
+      const low = Number((Math.min(open, close) - Math.random() * volatility * 0.6).toFixed(precision))
+      const volume = Number((Math.random() * (basePrice > 1000 ? 50 : 5000) + 10).toFixed(2))
+
+      candles.push({
+        time,
+        open,
+        high,
+        low,
+        close,
+        volume,
+        isClosed: idx < limit - 1,
+      })
+
+      runningPrice = close
+    }
+
+    return candles
   }
 
   public async getSymbols(signal?: AbortSignal): Promise<SymbolInfo[]> {
