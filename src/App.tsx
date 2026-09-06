@@ -13,7 +13,7 @@ import { feedSimulator } from '@/core/stream/mockFeed'
 
 export const AppContent: React.FC = () => {
   useEffect(() => {
-    feedSimulator.start(60)
+    feedSimulator.start(20)
     return () => {
       feedSimulator.stop()
     }

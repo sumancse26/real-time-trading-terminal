@@ -5,7 +5,7 @@ import { feedSimulator } from '../core/stream/mockFeed'
 
 describe('OrderBookView Feature', () => {
   beforeEach(() => {
-    feedSimulator.start(10)
+    feedSimulator.start(20)
   })
 
   afterEach(() => {

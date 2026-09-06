@@ -63,8 +63,12 @@ export const WatchlistPanel: React.FC = () => {
   )
 
   useEffect(() => {
-    const unsub = feedSimulator.onTicker(ticker => {
-      handleTickerUpdate(ticker.lastPrice)
+    const unsub = feedSimulator.tickerDispatcher.subscribe(tickers => {
+      if (tickers.length === 0) return
+      const latest = tickers[tickers.length - 1]
+      if (latest) {
+        handleTickerUpdate(latest.lastPrice)
+      }
     })
     return unsub
   }, [handleTickerUpdate])

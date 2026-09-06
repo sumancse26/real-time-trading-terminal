@@ -67,7 +67,7 @@ describe('WatchlistPanel Feature with Zustand State Management', () => {
       sortDirection: 'desc',
     })
 
-    feedSimulator.start(10)
+    feedSimulator.start(20)
   })
 
   afterEach(() => {

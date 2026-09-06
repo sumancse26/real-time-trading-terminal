@@ -1,6 +1,8 @@
 import type { MarketTicker, TradeTick } from '@/types/market'
 import type { OrderBookSnapshot, PriceLevel } from '@/types/orderbook'
+import type { SimulationRatePreset } from '@/types/telemetry'
 import { globalTracker } from '../performance/metrics'
+import { RafBatchDispatcher } from './batchQueue'
 
 export class TradingFeedSimulator {
   private currentPrice = 64250.0
@@ -10,16 +12,55 @@ export class TradingFeedSimulator {
   private tickerListeners = new Set<(ticker: MarketTicker) => void>()
   private isRunning = false
   private sequence = 100000
+  private currentRate: SimulationRatePreset = 20
+  private lastOrderBookSnapshot: OrderBookSnapshot | null = null
+  private lastTicker: MarketTicker | null = null
 
-  constructor(private symbol = 'BTC/USDT') {}
+  // Batched dispatchers for high-frequency mode
+  public readonly tradeDispatcher = new RafBatchDispatcher<TradeTick>()
+  public readonly orderBookDispatcher = new RafBatchDispatcher<OrderBookSnapshot>()
+  public readonly tickerDispatcher = new RafBatchDispatcher<MarketTicker>()
 
-  public start(frequencyMs = 50) {
-    if (this.isRunning) return
+  constructor(private symbol = 'BTC/USDT') {
+    this.lastOrderBookSnapshot = this.generateOrderBookSnapshot()
+    this.lastTicker = this.generateTicker()
+  }
+
+  public getCurrentOrderBookSnapshot(): OrderBookSnapshot | null {
+    return this.lastOrderBookSnapshot
+  }
+
+  public getCurrentTicker(): MarketTicker | null {
+    return this.lastTicker
+  }
+
+  public getCurrentPrice(): number {
+    return this.currentPrice
+  }
+
+  public start(frequencyPreset: SimulationRatePreset = 20) {
+    if (this.isRunning) {
+      this.stop()
+    }
     this.isRunning = true
+    this.currentRate = frequencyPreset
+    globalTracker.setSimulationRate(frequencyPreset)
+
+    const intervalMs = frequencyPreset >= 100 ? 10 : 50
+    const ticksPerInterval =
+      frequencyPreset === 1000
+        ? 10
+        : frequencyPreset === 500
+          ? 5
+          : frequencyPreset === 100
+            ? 1
+            : 1
 
     this.intervalId = window.setInterval(() => {
-      this.tick()
-    }, frequencyMs)
+      for (let i = 0; i < ticksPerInterval; i++) {
+        this.tick()
+      }
+    }, intervalMs)
   }
 
   public stop() {
@@ -30,6 +71,35 @@ export class TradingFeedSimulator {
     this.isRunning = false
   }
 
+  public setFrequency(rate: SimulationRatePreset) {
+    this.currentRate = rate
+    globalTracker.setSimulationRate(rate)
+    if (this.isRunning) {
+      this.start(rate)
+    }
+  }
+
+  public getFrequency(): SimulationRatePreset {
+    return this.currentRate
+  }
+
+  public setBatchingEnabled(enabled: boolean) {
+    this.tradeDispatcher.setBatchingEnabled(enabled)
+    this.orderBookDispatcher.setBatchingEnabled(enabled)
+    this.tickerDispatcher.setBatchingEnabled(enabled)
+    globalTracker.setBatchingEnabled(enabled)
+  }
+
+  public isBatchingEnabled(): boolean {
+    return this.tradeDispatcher.getBatchingEnabled()
+  }
+
+  public flushBatches() {
+    this.tradeDispatcher.flushNow()
+    this.orderBookDispatcher.flushNow()
+    this.tickerDispatcher.flushNow()
+  }
+
   public tick() {
     const priceDelta = (Math.random() - 0.495) * 4.5
     this.currentPrice = Math.max(1000, Number((this.currentPrice + priceDelta).toFixed(2)))
@@ -37,11 +107,11 @@ export class TradingFeedSimulator {
     const size = Number((Math.random() * 1.8 + 0.05).toFixed(4))
 
     this.sequence++
-    globalTracker.recordMessageArrival(2)
+    globalTracker.recordMessageArrival(1)
 
     // Generate Trade
     const trade: TradeTick = {
-      id: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: `${Date.now()}-${Math.floor(Math.random() * 10000)}`,
       symbol: this.symbol,
       price: this.currentPrice,
       size,
@@ -49,11 +119,32 @@ export class TradingFeedSimulator {
       timestamp: Date.now(),
     }
 
+    // Direct listener dispatch
     for (const listener of this.tradeListeners) {
       listener(trade)
     }
+    this.tradeDispatcher.push(trade)
 
     // Generate Order Book Snapshot
+    const snapshot = this.generateOrderBookSnapshot()
+    this.lastOrderBookSnapshot = snapshot
+
+    for (const listener of this.orderBookListeners) {
+      listener(snapshot)
+    }
+    this.orderBookDispatcher.push(snapshot)
+
+    // Emit Ticker update
+    const ticker = this.generateTicker()
+    this.lastTicker = ticker
+
+    for (const listener of this.tickerListeners) {
+      listener(ticker)
+    }
+    this.tickerDispatcher.push(ticker)
+  }
+
+  private generateOrderBookSnapshot(): OrderBookSnapshot {
     const asks: PriceLevel[] = []
     const bids: PriceLevel[] = []
 
@@ -87,7 +178,7 @@ export class TradingFeedSimulator {
     const spread = Number((firstAsk - firstBid).toFixed(2))
     const spreadPercentage = Number(((spread / this.currentPrice) * 100).toFixed(4))
 
-    const snapshot: OrderBookSnapshot = {
+    return {
       symbol: this.symbol,
       sequence: this.sequence,
       timestamp: Date.now(),
@@ -96,13 +187,10 @@ export class TradingFeedSimulator {
       spread,
       spreadPercentage,
     }
+  }
 
-    for (const listener of this.orderBookListeners) {
-      listener(snapshot)
-    }
-
-    // Emit Ticker update
-    const ticker: MarketTicker = {
+  private generateTicker(): MarketTicker {
+    return {
       symbol: this.symbol,
       baseAsset: 'BTC',
       quoteAsset: 'USDT',
@@ -113,10 +201,6 @@ export class TradingFeedSimulator {
       low24h: 62410.0,
       volume24h: 42890.45,
       turnover24h: 2758410290,
-    }
-
-    for (const listener of this.tickerListeners) {
-      listener(ticker)
     }
   }
 

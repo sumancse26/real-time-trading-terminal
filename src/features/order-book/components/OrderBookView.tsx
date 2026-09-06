@@ -1,20 +1,42 @@
-import React, { useEffect, useState } from 'react'
-import type { OrderBookSnapshot } from '@/types/orderbook'
-import { feedSimulator } from '@/core/stream/mockFeed'
+import React, { useState, memo } from 'react'
+import type { PriceLevel } from '@/types/orderbook'
+import { useBatchedOrderBook } from '@/core/stream/useBatchedStream'
 import { Card } from '@/components/ui/Card'
 import { NumberFlash } from '@/components/ui/NumberFlash'
 import { Layers, ArrowDownUp } from 'lucide-react'
 
-export const OrderBookView: React.FC = () => {
-  const [snapshot, setSnapshot] = useState<OrderBookSnapshot | null>(null)
-  const [precision, setPrecision] = useState<'0.1' | '0.5' | '1.0'>('0.5')
+export interface OrderBookRowProps {
+  level: PriceLevel
+  side: 'ask' | 'bid'
+}
 
-  useEffect(() => {
-    const unsub = feedSimulator.onOrderBook(book => {
-      setSnapshot(book)
-    })
-    return unsub
-  }, [])
+/**
+ * Justified Memoization:
+ * OrderBook price level row wrapped in React.memo.
+ * Prevents re-rendering rows whose price and depth quantity haven't changed across frame snapshots.
+ */
+export const OrderBookRow: React.FC<OrderBookRowProps> = memo(({ level, side }) => {
+  const isAsk = side === 'ask'
+  return (
+    <div className={`book-row ${isAsk ? 'ask-row' : 'bid-row'}`}>
+      <div
+        className={`depth-visualizer ${isAsk ? 'ask-depth' : 'bid-depth'}`}
+        style={{ width: `${level.percentDepth}%` }}
+      />
+      <span className={`col-price ${isAsk ? 'text-sell' : 'text-buy'}`}>
+        <NumberFlash value={level.price} format={v => v.toFixed(2)} />
+      </span>
+      <span className="col-size">{level.size.toFixed(3)}</span>
+      <span className="col-total">{level.total.toFixed(3)}</span>
+    </div>
+  )
+})
+
+OrderBookRow.displayName = 'OrderBookRow'
+
+export const OrderBookView: React.FC = () => {
+  const snapshot = useBatchedOrderBook()
+  const [precision, setPrecision] = useState<'0.1' | '0.5' | '1.0'>('0.5')
 
   if (!snapshot) {
     return (
@@ -67,17 +89,11 @@ export const OrderBookView: React.FC = () => {
             .slice(0, 10)
             .reverse()
             .map((level, idx) => (
-              <div key={`ask-${idx}-${level.price}`} className="book-row ask-row">
-                <div
-                  className="depth-visualizer ask-depth"
-                  style={{ width: `${level.percentDepth}%` }}
-                />
-                <span className="col-price text-sell">
-                  <NumberFlash value={level.price} format={v => v.toFixed(2)} />
-                </span>
-                <span className="col-size">{level.size.toFixed(3)}</span>
-                <span className="col-total">{level.total.toFixed(3)}</span>
-              </div>
+              <OrderBookRow
+                key={`ask-${idx}-${level.price}`}
+                level={level}
+                side="ask"
+              />
             ))}
         </div>
 
@@ -100,17 +116,11 @@ export const OrderBookView: React.FC = () => {
         {/* Bids (Buys) — highest bid at top */}
         <div className="book-section bids-section">
           {snapshot.bids.slice(0, 10).map((level, idx) => (
-            <div key={`bid-${idx}-${level.price}`} className="book-row bid-row">
-              <div
-                className="depth-visualizer bid-depth"
-                style={{ width: `${level.percentDepth}%` }}
-              />
-              <span className="col-price text-buy">
-                <NumberFlash value={level.price} format={v => v.toFixed(2)} />
-              </span>
-              <span className="col-size">{level.size.toFixed(3)}</span>
-              <span className="col-total">{level.total.toFixed(3)}</span>
-            </div>
+            <OrderBookRow
+              key={`bid-${idx}-${level.price}`}
+              level={level}
+              side="bid"
+            />
           ))}
         </div>
       </div>

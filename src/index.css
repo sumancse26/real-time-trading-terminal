@@ -493,14 +493,242 @@ input[type='number'],
   height: var(--telemetry-height);
   font-size: 0.6875rem;
   flex-shrink: 0;
+  position: relative;
+  z-index: 20;
 }
-.telemetry-left { display: flex; align-items: center; }
+.telemetry-left { display: flex; align-items: center; gap: 14px; }
 .telemetry-title { display: flex; align-items: center; gap: 6px; font-weight: 700; letter-spacing: 0.05em; color: var(--text-secondary); }
-.telemetry-metrics { display: flex; align-items: center; gap: 20px; }
+
+/* Rate Presets */
+.telemetry-rate-selector {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--bg-primary);
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+}
+.rate-selector-label {
+  font-size: 0.5625rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  padding: 0 4px;
+}
+.rate-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.12s;
+  font-family: 'JetBrains Mono', monospace;
+}
+.rate-btn:hover:not(.active) {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+.rate-btn.active {
+  background: var(--cyan-accent);
+  color: #000;
+  font-weight: 800;
+}
+
+/* Batching Mode Toggle */
+.batching-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+}
+.batching-toggle-btn.batched {
+  background: rgba(0, 243, 255, 0.1);
+  color: var(--cyan-accent);
+  border-color: rgba(0, 243, 255, 0.3);
+}
+.batching-toggle-btn.batched:hover {
+  background: rgba(0, 243, 255, 0.2);
+}
+.batching-toggle-btn.unbatched {
+  background: rgba(255, 171, 0, 0.12);
+  color: #ffab00;
+  border-color: rgba(255, 171, 0, 0.4);
+}
+.batching-toggle-btn.unbatched:hover {
+  background: rgba(255, 171, 0, 0.22);
+}
+.unbatched-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffab00;
+  animation: pulse-dot 1s infinite;
+}
+
+.telemetry-metrics { display: flex; align-items: center; gap: 16px; }
 .metric-chip { display: flex; align-items: center; gap: 5px; font-family: 'JetBrains Mono', monospace; }
 .metric-icon  { color: var(--text-muted); }
 .metric-label { color: var(--text-muted); font-size: 0.625rem; text-transform: uppercase; }
 .metric-value { font-weight: 700; }
+
+.benchmark-open-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(135deg, rgba(0, 243, 255, 0.15) 0%, rgba(121, 40, 202, 0.2) 100%);
+  border: 1px solid rgba(0, 243, 255, 0.4);
+  color: var(--cyan-accent);
+  font-size: 0.625rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.benchmark-open-btn:hover {
+  background: linear-gradient(135deg, rgba(0, 243, 255, 0.25) 0%, rgba(121, 40, 202, 0.35) 100%);
+  box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+}
+
+/* ─── Benchmark Modal ────────────────────────────────────────────── */
+.benchmark-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.benchmark-modal-content {
+  background: #0d121e;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  width: 100%;
+  max-width: 680px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 243, 255, 0.1);
+  overflow: hidden;
+  animation: fade-in 0.2s ease-out;
+}
+.benchmark-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: #090d16;
+}
+.benchmark-modal-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.benchmark-intro {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin: 0;
+}
+.benchmark-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-card);
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+}
+.bench-run-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 0.75rem;
+}
+.benchmark-results-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: slide-in-row 0.2s ease-out;
+}
+.benchmark-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.bench-stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.bench-stat-card.highlight {
+  border-color: rgba(0, 243, 255, 0.4);
+  background: rgba(0, 243, 255, 0.04);
+}
+.bench-stat-label {
+  font-size: 0.625rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.bench-stat-val {
+  font-size: 1.25rem;
+  font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+}
+.bench-stat-sub {
+  font-size: 0.625rem;
+  color: var(--text-muted);
+}
+.benchmark-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  background: var(--bg-card);
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+.benchmark-table th {
+  background: #090d16;
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 0.625rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.benchmark-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  font-family: 'JetBrains Mono', monospace;
+}
+.bench-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--buy-green-subtle);
+  border: 1px solid rgba(0, 229, 153, 0.3);
+  padding: 8px 12px;
+  border-radius: 6px;
+}
 
 /* ─── Terminal Grid Layout ───────────────────────────────────────── */
 /*
