@@ -32,6 +32,7 @@ export const OrderBookRow: React.FC<OrderBookRowProps> = memo(({ level, side, on
       title={`Click to prefill ${isAsk ? 'BUY' : 'SELL'} at $${level.price.toFixed(2)}`}
       role="button"
       tabIndex={0}
+      aria-label={`${isAsk ? 'Ask' : 'Bid'} price $${level.price.toFixed(2)}, size ${level.size.toFixed(3)}, total ${level.total.toFixed(3)}`}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()

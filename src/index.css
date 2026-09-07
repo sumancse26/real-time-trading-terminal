@@ -87,6 +87,40 @@
   padding: 0;
 }
 
+/* Remove default browser outline — we restore it via :focus-visible below */
+*:focus {
+  outline: none;
+}
+
+/* ─── Universal Focus Ring (WCAG 2.4.7 / 2.4.11) ────────────────── */
+/*
+  Show a high-contrast cyan ring on keyboard navigation only.
+  :focus-visible is supported in all evergreen browsers; pointer clicks
+  will not trigger the ring.
+*/
+*:focus-visible {
+  outline: 2px solid var(--cyan-accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+  box-shadow: 0 0 0 4px rgba(0, 243, 255, 0.18);
+}
+
+/* Buttons and icon-btns get a slightly tighter ring */
+button:focus-visible,
+[role='button']:focus-visible {
+  outline: 2px solid var(--cyan-accent);
+  outline-offset: 2px;
+}
+
+/* Input / select / textarea focus: use border-focus color instead of box-shadow ring */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--border-focus) !important;
+  box-shadow: 0 0 0 3px rgba(0, 243, 255, 0.2);
+}
+
 /* ─── Base ───────────────────────────────────────────────────────── */
 html,
 body {
@@ -2603,6 +2637,324 @@ select:focus-visible {
 }
 
 
+/* ═══════════════════════════════════════════════════════════════════
+   PHASE 18 — ACCESSIBILITY & RESPONSIVE ADDITIONS
+   ═══════════════════════════════════════════════════════════════════ */
 
+/* ─── Visually Hidden (Screen-Reader Only) ───────────────────────── */
+/*
+  Content that should be announced by screen readers but not visible.
+  Use for skip links (before focused), table captions, ARIA labels, etc.
+*/
+.visually-hidden,
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
 
+/* ─── Skip Navigation Link ───────────────────────────────────────── */
+.skip-link {
+  position: fixed;
+  top: -100%;
+  left: 12px;
+  z-index: 9999;
+  background: var(--cyan-accent);
+  color: #000;
+  font-weight: 800;
+  font-size: 0.8125rem;
+  padding: 8px 16px;
+  border-radius: 0 0 6px 6px;
+  text-decoration: none;
+  transition: top 0.15s ease;
+  letter-spacing: 0.02em;
+}
+.skip-link:focus-visible {
+  top: 0;
+  outline: 2px solid #000;
+  outline-offset: 2px;
+  box-shadow: none;
+}
 
+/* ─── Prefers Reduced Motion ─────────────────────────────────────── */
+/*
+  When the OS/browser reports the user prefers reduced motion,
+  make ALL animations and transitions instant (0ms).
+  This covers vestibular disorders, epilepsy, and personal preference.
+*/
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Keep the live-dot visible but static */
+  .live-dot,
+  .unbatched-dot {
+    animation: none !important;
+    opacity: 1;
+  }
+
+  /* Kill chart entry animations */
+  .trade-row,
+  .watchlist-item {
+    animation: none !important;
+  }
+}
+
+/* ─── Responsive Layout ──────────────────────────────────────────── */
+/*
+  Three tiers:
+    • Desktop  ≥ 1280px  — 4-col grid (unchanged)
+    • Tablet   768–1279px — 2-col grid
+    • Mobile   < 768px   — single-col stack with tab-bar
+*/
+
+/* ── TABLET (768px – 1279px) ──────────────────────────────────────── */
+@media (max-width: 1279px) {
+  /* Condense the header market stats strip */
+  .market-stats-strip {
+    gap: 12px;
+  }
+  .stat-label {
+    font-size: 0.5625rem;
+  }
+
+  /* 2-column grid:
+     Col 1 (1fr) : Chart (row 1) + Trades (row 2)
+     Col 2 (260px): Order Book (row 1) + Order Entry (row 2)
+     Row 3: Positions (full width)
+     Watchlist: hidden on tablet to save space */
+  .terminal-layout {
+    grid-template-columns: 1fr 260px;
+    grid-template-rows: 1fr auto auto auto;
+  }
+
+  .watchlist-grid-cell {
+    display: none; /* collapsed on tablet — accessible via search */
+  }
+
+  .chart-grid-cell {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .trades-grid-cell {
+    grid-column: 1;
+    grid-row: 2;
+    max-height: 140px;
+  }
+
+  .orderbook-grid-cell {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+
+  .orderentry-grid-cell {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    max-height: none;
+  }
+
+  .positions-grid-cell {
+    grid-column: 1 / -1;
+    grid-row: 4;
+  }
+
+  /* Order entry: horizontal layout on tablet */
+  .order-entry-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    overflow-y: visible;
+  }
+  .order-entry-form .side-toggle-group,
+  .order-entry-form .type-tabs {
+    grid-column: 1 / -1;
+  }
+  .order-entry-form .order-summary-box {
+    grid-column: 1 / -1;
+  }
+  .order-entry-form > button[type='submit'],
+  .order-entry-form .btn {
+    grid-column: 1 / -1;
+  }
+
+  /* Telemetry bar: hide some metrics to save space */
+  .telemetry-metrics .metric-chip:nth-child(n+4) {
+    display: none;
+  }
+}
+
+/* ── MOBILE (< 768px) ─────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  /* Allow the page to scroll vertically on mobile */
+  html, body {
+    overflow: auto;
+  }
+
+  /* Mobile header: tighter, hide non-essential elements */
+  .terminal-header {
+    padding: 0 10px;
+    gap: 8px;
+    height: auto;
+    min-height: var(--header-height);
+    flex-wrap: wrap;
+    padding-block: 6px;
+  }
+  .market-stats-strip {
+    display: none; /* hidden on mobile */
+  }
+  .header-right .status-indicators {
+    display: none; /* collapsed on mobile */
+  }
+  .telemetry-bar {
+    display: none; /* hide on mobile */
+  }
+  .brand-tag {
+    display: none;
+  }
+
+  /* Single column stack */
+  .terminal-layout {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    gap: 4px;
+    padding: 4px;
+    height: auto;
+  }
+
+  /* All grid cells: natural flow, bounded height */
+  .watchlist-grid-cell,
+  .chart-grid-cell,
+  .trades-grid-cell,
+  .orderbook-grid-cell,
+  .orderentry-grid-cell,
+  .positions-grid-cell {
+    grid-column: unset;
+    grid-row: unset;
+    width: 100%;
+    min-height: 0;
+  }
+
+  .chart-grid-cell {
+    height: 260px;
+    flex-shrink: 0;
+  }
+  .trades-grid-cell {
+    max-height: 120px;
+  }
+  .orderbook-grid-cell {
+    height: 280px;
+    flex-shrink: 0;
+  }
+  .watchlist-grid-cell {
+    height: 200px;
+    flex-shrink: 0;
+  }
+  .positions-grid-cell {
+    min-height: 200px;
+  }
+
+  /* Reset order-entry 2-col tablet layout */
+  .order-entry-form {
+    display: flex;
+    flex-direction: column;
+    overflow-y: visible;
+    gap: 8px;
+  }
+
+  /* Positions table: enable horizontal scroll on mobile */
+  .positions-table-wrapper,
+  .orders-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Benchmark modal: full screen on mobile */
+  .benchmark-modal-content,
+  .shortcuts-modal-content {
+    max-width: 100%;
+    margin: 8px;
+    max-height: calc(100dvh - 16px);
+  }
+
+  /* Stat cards: 2-up on mobile */
+  .benchmark-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Portfolio tabs: allow wrapping */
+  .portfolio-tabs {
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+}
+
+/* ─── Table Scroll Wrappers ──────────────────────────────────────── */
+/* Ensure data tables in Positions/Orders can scroll on narrow viewports */
+.positions-table-wrapper,
+.orders-table-wrapper,
+.history-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ─── Additional ARIA / Semantic Helpers ─────────────────────────── */
+/* Price live-region: visually visible but announced via aria-live */
+.price-live-region {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Error drawer as dialog overlay (role=dialog) */
+.system-log-drawer[role='dialog'] {
+  /* existing positioning preserved; add overlay behaviour */
+  isolation: isolate;
+}
+
+/* Accessible active state for tab buttons (supplements color contrast) */
+[role='tab'][aria-selected='true'] {
+  font-weight: 700;
+}
+
+/* Column sort button base reset */
+.sort-col-btn {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0;
+  line-height: 1;
+  user-select: none;
+}
+.sort-col-btn:hover {
+  color: var(--text-primary);
+}
+.sort-col-btn:focus-visible {
+  outline: 1px solid var(--cyan-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+  box-shadow: none;
+}

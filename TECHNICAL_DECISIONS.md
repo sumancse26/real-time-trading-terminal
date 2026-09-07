@@ -709,5 +709,51 @@
 **Rationale**:
 - Onboards new traders quickly with instant in-terminal shortcut discovery.
 
+---
 
+# Phase 18 — Accessibility & Responsive Decisions
 
+## TD-069 — Bidirectional Focus Trapping & Document-Level Keyboard Capturing
+
+**Decision**: Implemented `useFocusTrap` capturing Tab/Shift+Tab keydown events at the document level with active element caching and restoration on unmount.
+
+**Rationale**:
+- Ensures modal focus never escapes to background content or gets stuck on overlay backdrops, satisfying WCAG 2.1 Criteria 2.4.3 & 2.1.2.
+
+---
+
+## TD-070 — ARIA Live Price Announcements & Semantic Tablists
+
+**Decision**: Decorated real-time market price containers with `aria-live="polite"` and `aria-atomic="true"`, upgraded portfolio sections to `role="tablist"` / `role="tab"` / `role="tabpanel"`, and added `aria-sort` on sortable columns.
+
+**Rationale**:
+- Provides screen readers with meaningful real-time updates and navigational structure across complex financial tables.
+
+---
+
+# Phase 19 — Senior Code Review & Refactoring Decisions
+
+## TD-071 — Dynamic Active Asset Header Propagation
+
+**Decision**: Subscribed `TradesStreamView` to `useSelectedSymbol()` to dynamically extract base and quote asset identifiers (`baseAsset`, `quoteAsset`) for column headers.
+
+**Rationale**:
+- Eliminates hardcoded symbol assumptions across feature panels when switching active trading pairs.
+
+---
+
+## TD-072 — Asynchronous Timer Cleanup & Lifecycle Guarding
+
+**Decision**: Implemented ref-tracked timer handles (`benchTimerRef`, `velocityTimeoutRef`) in `TelemetryBar` and `useVirtualizer` with explicit cleanup on hook and component unmount.
+
+**Rationale**:
+- Prevents memory leaks and React warnings caused by state updates attempting to execute after a component has unmounted.
+
+---
+
+## TD-073 — Quantitative Math Boundary Guarding
+
+**Decision**: Enforced `safeSimulationPaths = Math.max(1, simulationPaths)` and boundary checks in Monte Carlo calculations in `riskCalculator.ts`.
+
+**Rationale**:
+- Guarantees mathematical stability and eliminates NaN / division-by-zero risks during edge-case simulations.

@@ -1,9 +1,8 @@
-import React from 'react'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AppContent } from '@/App'
-import { isTextInputActive, keyboardManager } from '@/core/keyboard/keyboardManager'
+import { isTextInputActive } from '@/core/keyboard/keyboardManager'
 import { useMarketStore } from '@/core/store/useMarketStore'
 import { mockApiClient } from '@/core/api/client'
 

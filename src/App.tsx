@@ -31,10 +31,19 @@ export const AppContent: React.FC = () => {
 
   return (
     <div className="app-container" data-testid="app-container">
+      {/* Skip to main content — visible only on keyboard focus (WCAG 2.4.1) */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+
       <TerminalHeader onOpenShortcuts={() => setShowShortcutsModal(true)} />
       <TelemetryBar />
 
-      <main className="terminal-layout">
+      <main
+        id="main-content"
+        className="terminal-layout"
+        aria-label="Trading Terminal Main Workspace"
+      >
         {/* Col 1 — Watchlist, spans rows 1+2 */}
         <div className="watchlist-grid-cell">
           <WidgetErrorBoundary widgetName="Watchlist">

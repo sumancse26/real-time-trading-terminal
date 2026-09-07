@@ -92,10 +92,20 @@ export function useVirtualizer({
   // Attach native passive scroll listener for 60fps scrolling
   useEffect(() => {
     const container = containerRef.current
-    if (!container) return
+    return () => {
+      if (container) {
+        container.removeEventListener('scroll', handleScroll)
+      }
+      if (velocityTimeoutRef.current) {
+        clearTimeout(velocityTimeoutRef.current)
+      }
+    }
+  }, [containerRef, handleScroll])
 
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
     container.addEventListener('scroll', handleScroll, { passive: true })
-    return () => container.removeEventListener('scroll', handleScroll)
   }, [containerRef, handleScroll])
 
   const { startIndex, endIndex, virtualItems } = useMemo(() => {

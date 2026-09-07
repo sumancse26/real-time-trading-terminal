@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import type { PerformanceMetrics, SimulationRatePreset, BenchmarkResult } from '@/types/telemetry'
 import { globalTracker } from '@/core/performance/metrics'
 import { feedSimulator } from '@/core/stream/mockFeed'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 import {
   Cpu,
   Gauge,
@@ -25,11 +26,37 @@ export const TelemetryBar: React.FC = () => {
   const [benchmarkRate, setBenchmarkRate] = useState<SimulationRatePreset>(1000)
   const [benchmarkResult, setBenchmarkResult] = useState<BenchmarkResult | null>(null)
   const [isRunningBench, setIsRunningBench] = useState(false)
+  const benchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const benchmarkModalRef = useRef<HTMLDivElement>(null)
+  const stressModalRef = useRef<HTMLDivElement>(null)
+
+  useFocusTrap(benchmarkModalRef, showBenchmarkModal)
+  useFocusTrap(stressModalRef, showStressModal)
 
   useEffect(() => {
     const unsub = globalTracker.subscribe(setMetrics)
-    return unsub
+    return () => {
+      unsub()
+      if (benchTimerRef.current) {
+        clearTimeout(benchTimerRef.current)
+      }
+    }
   }, [])
+
+  // Handle Escape key to dismiss active modals
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showBenchmarkModal) setShowBenchmarkModal(false)
+        if (showStressModal) setShowStressModal(false)
+      }
+    }
+    if (showBenchmarkModal || showStressModal) {
+      window.addEventListener('keydown', handleKeyDown)
+      return () => window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [showBenchmarkModal, showStressModal])
 
   const handleRateChange = (rate: SimulationRatePreset) => {
     feedSimulator.setFrequency(rate)
@@ -42,10 +69,14 @@ export const TelemetryBar: React.FC = () => {
 
   const handleRunBenchmark = () => {
     setIsRunningBench(true)
-    setTimeout(() => {
+    if (benchTimerRef.current) {
+      clearTimeout(benchTimerRef.current)
+    }
+    benchTimerRef.current = setTimeout(() => {
       const res = globalTracker.runBenchmark(benchmarkRate, 1000)
       setBenchmarkResult(res)
       setIsRunningBench(false)
+      benchTimerRef.current = null
     }, 400)
   }
 
@@ -62,7 +93,7 @@ export const TelemetryBar: React.FC = () => {
         {/* High-Frequency Rate Presets */}
         <div className="telemetry-rate-selector" data-testid="rate-selector">
           <span className="rate-selector-label">FEED RATE:</span>
-          {rates.map(r => (
+          {rates.map((r) => (
             <button
               key={r}
               type="button"
@@ -175,8 +206,12 @@ export const TelemetryBar: React.FC = () => {
       {showBenchmarkModal && (
         <div className="benchmark-modal-backdrop" onClick={() => setShowBenchmarkModal(false)}>
           <div
+            ref={benchmarkModalRef}
             className="benchmark-modal-content"
-            onClick={e => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="High-Frequency Data Benchmark"
             data-testid="benchmark-modal"
           >
             <div className="benchmark-modal-header">
@@ -205,7 +240,7 @@ export const TelemetryBar: React.FC = () => {
               <div className="benchmark-controls">
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted font-mono">TARGET RATE:</span>
-                  {rates.filter(r => r >= 100).map(r => (
+                  {rates.filter((r) => r >= 100).map((r) => (
                     <button
                       key={r}
                       type="button"
@@ -334,8 +369,12 @@ export const TelemetryBar: React.FC = () => {
       {showStressModal && (
         <div className="benchmark-modal-backdrop" onClick={() => setShowStressModal(false)}>
           <div
+            ref={stressModalRef}
             className="benchmark-modal-content stress-modal-content"
-            onClick={e => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Full Terminal Stress Test & Profiler"
             data-testid="stress-modal"
           >
             <StressTestPanel onClose={() => setShowStressModal(false)} />

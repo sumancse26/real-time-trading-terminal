@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { Command, X, ArrowUpRight, ArrowDownRight, Search, Zap, CornerDownLeft } from 'lucide-react'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 
 export interface KeyboardShortcutsModalProps {
   isOpen: boolean
@@ -25,10 +26,18 @@ const SHORTCUTS: ShortcutItem[] = [
   { key: '?', description: 'Toggle this Keyboard Shortcuts reference HUD', category: 'General', icon: <Zap size={13} className="text-warning" /> },
 ]
 
+const MODAL_DESC_ID = 'shortcuts-modal-desc'
+const MODAL_TITLE_ID = 'shortcuts-modal-title'
+
 export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Focus trap: cycle Tab/Shift+Tab within the dialog, restore focus on close
+  useFocusTrap(containerRef, isOpen, '[data-autofocus]')
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
@@ -48,59 +57,65 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
       className="benchmark-modal-backdrop"
       onClick={onClose}
       data-testid="shortcuts-modal-backdrop"
+      aria-hidden="false"
     >
       <div
+        ref={containerRef}
         className="benchmark-modal-content shortcuts-modal-content"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="shortcuts-modal-title"
+        aria-labelledby={MODAL_TITLE_ID}
+        aria-describedby={MODAL_DESC_ID}
         data-testid="shortcuts-modal"
       >
         <div className="benchmark-modal-header">
           <div className="flex items-center gap-2">
             <Command size={16} className="text-cyan-accent" />
-            <h3 id="shortcuts-modal-title" className="font-bold text-sm text-neutral-100">
-              KEYBOARD SHORTCUTS & PRO-TRADING HOTKEYS
-            </h3>
+            <h2 id={MODAL_TITLE_ID} className="font-bold text-sm text-neutral-100">
+              KEYBOARD SHORTCUTS &amp; PRO-TRADING HOTKEYS
+            </h2>
           </div>
           <button
             type="button"
             className="icon-btn"
             onClick={onClose}
-            aria-label="Close Shortcuts Modal"
+            aria-label="Close Keyboard Shortcuts"
             data-testid="close-shortcuts-modal"
+            data-autofocus
           >
             <X size={16} />
           </button>
         </div>
 
         <div className="shortcuts-modal-body">
-          <p className="text-xs text-neutral-400 mb-3">
+          <p id={MODAL_DESC_ID} className="text-xs text-neutral-400 mb-3">
             Institutional fast-keys enabled. Single-letter hotkeys are automatically protected while typing in text inputs.
           </p>
 
-          <div className="shortcuts-grid">
+          <div className="shortcuts-grid" role="list" aria-label="Keyboard shortcut categories">
             {categories.map((cat) => (
-              <div key={cat} className="shortcut-category-card">
-                <h4 className="shortcut-category-title">{cat.toUpperCase()}</h4>
-                <div className="shortcut-list">
+              <div key={cat} className="shortcut-category-card" role="listitem">
+                <h3 className="shortcut-category-title">{cat.toUpperCase()}</h3>
+                <dl className="shortcut-list">
                   {SHORTCUTS.filter((s) => s.category === cat).map((s) => (
                     <div key={s.key} className="shortcut-row">
                       <div className="flex items-center gap-2">
-                        {s.icon}
-                        <span className="shortcut-desc">{s.description}</span>
+                        {s.icon && <span aria-hidden="true">{s.icon}</span>}
+                        <dd className="shortcut-desc">{s.description}</dd>
                       </div>
-                      <kbd className="kbd-badge font-mono font-bold">{s.key}</kbd>
+                      <dt>
+                        <kbd className="kbd-badge font-mono font-bold" aria-label={`Key: ${s.key}`}>{s.key}</kbd>
+                      </dt>
                     </div>
                   ))}
-                </div>
+                </dl>
               </div>
             ))}
           </div>
 
           <div className="shortcuts-footer text-xs text-neutral-400 mt-4 flex items-center justify-between border-t border-border-subtle pt-3">
-            <span>Press <kbd className="kbd-badge">Esc</kbd> to close at any time</span>
+            <span>Press <kbd className="kbd-badge" aria-label="Escape key">Esc</kbd> to close at any time</span>
             <span className="text-cyan-accent font-mono font-bold">Trading Terminal v0.1.0</span>
           </div>
         </div>

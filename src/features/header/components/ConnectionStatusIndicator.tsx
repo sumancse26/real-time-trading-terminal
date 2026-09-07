@@ -36,18 +36,27 @@ export const ConnectionStatusIndicator: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false)
   const popoverRef = useRef<HTMLDivElement>(null)
 
-  // Close popover when clicking outside
+  // Close popover when clicking outside or pressing Escape
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
         setIsOpen(false)
       }
     }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false)
+      }
+    }
+
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('keydown', handleKeyDown)
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
     }
   }, [isOpen])
 
@@ -87,6 +96,7 @@ export const ConnectionStatusIndicator: React.FC = () => {
               type="button"
               className="quick-reconnect-btn"
               onClick={handleManualReconnect}
+              onKeyDown={(e) => e.stopPropagation()}
               title="Immediate Reconnect"
               data-testid="reconnect-now-btn"
             >
@@ -124,6 +134,7 @@ export const ConnectionStatusIndicator: React.FC = () => {
               type="button"
               className="quick-reconnect-btn"
               onClick={handleManualReconnect}
+              onKeyDown={(e) => e.stopPropagation()}
               title="Connect to WebSocket"
               data-testid="connect-now-btn"
             >
@@ -139,6 +150,9 @@ export const ConnectionStatusIndicator: React.FC = () => {
       <div
         role="button"
         tabIndex={0}
+        aria-expanded={isOpen}
+        aria-haspopup="dialog"
+        aria-label={`Connection status: ${status}. Latency: ${latency}ms. Click for network diagnostics.`}
         className="connection-trigger-btn"
         onClick={() => setIsOpen(!isOpen)}
         onKeyDown={(e) => {
@@ -154,11 +168,16 @@ export const ConnectionStatusIndicator: React.FC = () => {
       </div>
 
       {isOpen && (
-        <div className="connection-popover" data-testid="connection-popover">
+        <div
+          className="connection-popover"
+          role="dialog"
+          aria-label="WebSocket & Network Diagnostics"
+          data-testid="connection-popover"
+        >
           <div className="popover-header">
             <div className="popover-title">
               <Radio size={14} className="text-cyan inline mr-1.5" />
-              <span>WebSocket & Network Diagnostics</span>
+              <span>WebSocket &amp; Network Diagnostics</span>
             </div>
             <button
               type="button"
@@ -223,7 +242,7 @@ export const ConnectionStatusIndicator: React.FC = () => {
           <div className="popover-actions-section">
             <span className="section-title">
               <Sliders size={12} className="inline mr-1" />
-              Resilience & Chaos Simulation
+              Resilience &amp; Chaos Simulation
             </span>
             <div className="sim-buttons">
               <button

@@ -1,6 +1,7 @@
 import React, { memo } from 'react'
 import type { TradeTick } from '@/types/market'
 import { useBatchedTrades } from '@/core/stream/useBatchedStream'
+import { useSelectedSymbol } from '@/core/store/useMarketStore'
 import { Card } from '@/components/ui/Card'
 import { NumberFlash } from '@/components/ui/NumberFlash'
 import { Activity } from 'lucide-react'
@@ -22,7 +23,7 @@ export const TradeRowItem: React.FC<TradeRowItemProps> = memo(({ trade }) => {
   return (
     <div className="trade-row">
       <span className={`col-trade-price ${isBuy ? 'text-buy' : 'text-sell'}`}>
-        <NumberFlash value={trade.price} format={v => v.toFixed(2)} />
+        <NumberFlash value={trade.price} format={(v) => v.toFixed(2)} />
       </span>
       <span className="col-trade-size">{trade.size.toFixed(4)}</span>
       <span className="col-trade-time">
@@ -37,6 +38,10 @@ TradeRowItem.displayName = 'TradeRowItem'
 
 export const TradesStreamView: React.FC = () => {
   const trades = useBatchedTrades(25)
+  const selectedSymbol = useSelectedSymbol()
+
+  const baseAsset = selectedSymbol.split('/')[0] || 'BTC'
+  const quoteAsset = selectedSymbol.split('/')[1] || 'USDT'
 
   return (
     <Card
@@ -51,13 +56,13 @@ export const TradesStreamView: React.FC = () => {
     >
       <div className="trades-table-container" data-testid="trades-stream-view">
         <div className="trades-table-header">
-          <span className="col-trade-price">PRICE (USDT)</span>
-          <span className="col-trade-size">SIZE (BTC)</span>
+          <span className="col-trade-price">PRICE ({quoteAsset})</span>
+          <span className="col-trade-size">SIZE ({baseAsset})</span>
           <span className="col-trade-time">TIME</span>
         </div>
 
         <div className="trades-table-body">
-          {trades.map(trade => (
+          {trades.map((trade) => (
             <TradeRowItem key={trade.id} trade={trade} />
           ))}
         </div>

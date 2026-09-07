@@ -186,6 +186,7 @@ export const WatchlistPanel: React.FC = () => {
                 key={cat}
                 type="button"
                 onClick={() => setCategory(cat)}
+                aria-pressed={category === cat}
                 style={{
                   fontSize: '0.65rem',
                   padding: '2px 6px',
@@ -225,6 +226,7 @@ export const WatchlistPanel: React.FC = () => {
 
         {/* Column Headers with Sortable Triggers */}
         <div
+          role="row"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -237,24 +239,39 @@ export const WatchlistPanel: React.FC = () => {
             userSelect: 'none',
           }}
         >
-          <div
+          <button
+            type="button"
+            className="sort-col-btn"
             onClick={() => setSort('symbol')}
-            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            aria-sort={sortField === 'symbol' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+            aria-label={`Sort by Pair ${
+              sortField === 'symbol' ? (sortDir === 'asc' ? '(currently ascending)' : '(currently descending)') : ''
+            }`}
           >
             PAIR {renderSortIcon('symbol')}
-          </div>
-          <div
+          </button>
+          <button
+            type="button"
+            className="sort-col-btn"
             onClick={() => setSort('lastPrice')}
-            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            aria-sort={sortField === 'lastPrice' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+            aria-label={`Sort by Price ${
+              sortField === 'lastPrice' ? (sortDir === 'asc' ? '(currently ascending)' : '(currently descending)') : ''
+            }`}
           >
             PRICE {renderSortIcon('lastPrice')}
-          </div>
-          <div
+          </button>
+          <button
+            type="button"
+            className="sort-col-btn"
             onClick={() => setSort('priceChangePercent24h')}
-            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            aria-sort={sortField === 'priceChangePercent24h' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+            aria-label={`Sort by 24h % ${
+              sortField === 'priceChangePercent24h' ? (sortDir === 'asc' ? '(currently ascending)' : '(currently descending)') : ''
+            }`}
           >
             24H % {renderSortIcon('priceChangePercent24h')}
-          </div>
+          </button>
         </div>
 
         {/* Watchlist Rows */}

@@ -180,51 +180,76 @@ export const PositionsView: React.FC = () => {
   return (
     <Card
       title={
-        <div className="portfolio-tabs" data-testid="portfolio-tabs">
+        <div
+          className="portfolio-tabs"
+          data-testid="portfolio-tabs"
+          role="tablist"
+          aria-label="Portfolio Sections"
+        >
           <button
+            id="tab-positions"
             type="button"
             className={`portfolio-tab-btn ${tab === 'positions' ? 'active' : ''}`}
             onClick={() => setTab('positions')}
+            role="tab"
+            aria-selected={tab === 'positions'}
+            aria-controls="panel-positions"
             data-testid="tab-positions"
           >
-            <Briefcase size={13} className="mr-1 inline" />
+            <Briefcase size={13} className="mr-1 inline" aria-hidden="true" />
             POSITIONS ({positions.length})
           </button>
           <button
+            id="tab-orders"
             type="button"
             className={`portfolio-tab-btn ${tab === 'orders' ? 'active' : ''}`}
             onClick={() => setTab('orders')}
+            role="tab"
+            aria-selected={tab === 'orders'}
+            aria-controls="panel-orders"
             data-testid="tab-orders"
           >
-            <ListFilter size={13} className="mr-1 inline" />
+            <ListFilter size={13} className="mr-1 inline" aria-hidden="true" />
             OPEN ORDERS ({orders.length})
           </button>
           <button
+            id="tab-history"
             type="button"
             className={`portfolio-tab-btn ${tab === 'history' ? 'active' : ''}`}
             onClick={() => setTab('history')}
+            role="tab"
+            aria-selected={tab === 'history'}
+            aria-controls="panel-history"
             data-testid="tab-history"
           >
-            <History size={13} className="mr-1 inline" />
+            <History size={13} className="mr-1 inline" aria-hidden="true" />
             ORDER HISTORY ({orderHistory.length})
           </button>
           <button
+            id="tab-archive"
             type="button"
             className={`portfolio-tab-btn ${tab === 'archive' ? 'active text-cyan-accent' : ''}`}
             onClick={() => setTab('archive')}
+            role="tab"
+            aria-selected={tab === 'archive'}
+            aria-controls="panel-archive"
             data-testid="tab-archive"
           >
-            <Database size={13} className="mr-1 inline text-cyan-accent" />
+            <Database size={13} className="mr-1 inline text-cyan-accent" aria-hidden="true" />
             100K ARCHIVE (100,000)
           </button>
           <button
+            id="tab-risk"
             type="button"
             className={`portfolio-tab-btn ${tab === 'risk' ? 'active text-warning' : ''}`}
             onClick={() => setTab('risk')}
+            role="tab"
+            aria-selected={tab === 'risk'}
+            aria-controls="panel-risk"
             data-testid="tab-risk"
           >
-            <Cpu size={13} className="mr-1 inline text-warning" />
-            RISK & ANALYTICS (WEB WORKER)
+            <Cpu size={13} className="mr-1 inline text-warning" aria-hidden="true" />
+            RISK &amp; ANALYTICS (WEB WORKER)
           </button>
         </div>
       }
@@ -239,7 +264,12 @@ export const PositionsView: React.FC = () => {
     >
       <div className="positions-container" data-testid="positions-view">
         {tab === 'positions' && (
-          <div className="table-responsive">
+          <div
+            id="panel-positions"
+            role="tabpanel"
+            aria-labelledby="tab-positions"
+            className="positions-table-wrapper"
+          >
             {isPositionsLoading ? (
               <div
                 style={{
@@ -278,17 +308,18 @@ export const PositionsView: React.FC = () => {
               </div>
             ) : (
               <table className="terminal-table" data-testid="positions-table">
+                <caption className="visually-hidden">Active Trading Positions</caption>
                 <thead>
                   <tr>
-                    <th>CONTRACT</th>
-                    <th>SIZE</th>
-                    <th>ENTRY PRICE</th>
-                    <th>MARK PRICE</th>
-                    <th>VALUE</th>
-                    <th>LIQ. PRICE</th>
-                    <th>MARGIN</th>
-                    <th>UNREALIZED PnL (ROE %)</th>
-                    <th className="text-right">ACTION</th>
+                    <th scope="col">CONTRACT</th>
+                    <th scope="col">SIZE</th>
+                    <th scope="col">ENTRY PRICE</th>
+                    <th scope="col">MARK PRICE</th>
+                    <th scope="col">VALUE</th>
+                    <th scope="col">LIQ. PRICE</th>
+                    <th scope="col">MARGIN</th>
+                    <th scope="col">UNREALIZED PnL (ROE %)</th>
+                    <th scope="col" className="text-right">ACTION</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -313,7 +344,12 @@ export const PositionsView: React.FC = () => {
         )}
 
         {tab === 'orders' && (
-          <div className="table-responsive">
+          <div
+            id="panel-orders"
+            role="tabpanel"
+            aria-labelledby="tab-orders"
+            className="orders-table-wrapper"
+          >
             {isOrdersLoading ? (
               <div
                 style={{
@@ -352,17 +388,18 @@ export const PositionsView: React.FC = () => {
               </div>
             ) : (
               <table className="terminal-table" data-testid="open-orders-table">
+                <caption className="visually-hidden">Open Orders</caption>
                 <thead>
                   <tr>
-                    <th>TIME</th>
-                    <th>CONTRACT</th>
-                    <th>TYPE</th>
-                    <th>SIDE</th>
-                    <th>PRICE</th>
-                    <th>AMOUNT</th>
-                    <th>FILLED</th>
-                    <th>STATUS</th>
-                    <th className="text-right">ACTION</th>
+                    <th scope="col">TIME</th>
+                    <th scope="col">CONTRACT</th>
+                    <th scope="col">TYPE</th>
+                    <th scope="col">SIDE</th>
+                    <th scope="col">PRICE</th>
+                    <th scope="col">AMOUNT</th>
+                    <th scope="col">FILLED</th>
+                    <th scope="col">STATUS</th>
+                    <th scope="col" className="text-right">ACTION</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -414,7 +451,12 @@ export const PositionsView: React.FC = () => {
         )}
 
         {tab === 'history' && (
-          <div className="table-responsive">
+          <div
+            id="panel-history"
+            role="tabpanel"
+            aria-labelledby="tab-history"
+            className="history-table-wrapper"
+          >
             {isHistoryLoading ? (
               <div
                 style={{
@@ -453,16 +495,17 @@ export const PositionsView: React.FC = () => {
               </div>
             ) : (
               <table className="terminal-table" data-testid="order-history-table">
+                <caption className="visually-hidden">Order History</caption>
                 <thead>
                   <tr>
-                    <th>TIME</th>
-                    <th>CONTRACT</th>
-                    <th>TYPE</th>
-                    <th>SIDE</th>
-                    <th>PRICE</th>
-                    <th>AMOUNT</th>
-                    <th>FILLED</th>
-                    <th>STATUS</th>
+                    <th scope="col">TIME</th>
+                    <th scope="col">CONTRACT</th>
+                    <th scope="col">TYPE</th>
+                    <th scope="col">SIDE</th>
+                    <th scope="col">PRICE</th>
+                    <th scope="col">AMOUNT</th>
+                    <th scope="col">FILLED</th>
+                    <th scope="col">STATUS</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -490,8 +533,16 @@ export const PositionsView: React.FC = () => {
           </div>
         )}
 
-        {tab === 'archive' && <VirtualizedOrderArchive />}
-        {tab === 'risk' && <RiskAnalyticsPanel positions={positions} />}
+        {tab === 'archive' && (
+          <div id="panel-archive" role="tabpanel" aria-labelledby="tab-archive">
+            <VirtualizedOrderArchive />
+          </div>
+        )}
+        {tab === 'risk' && (
+          <div id="panel-risk" role="tabpanel" aria-labelledby="tab-risk">
+            <RiskAnalyticsPanel positions={positions} />
+          </div>
+        )}
       </div>
     </Card>
   )

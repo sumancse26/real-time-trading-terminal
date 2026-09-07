@@ -36,6 +36,8 @@ export function calculateRiskAnalytics(
     confidenceLevels = [0.95, 0.99],
   } = input
 
+  const safeSimulationPaths = Math.max(1, Number.isFinite(simulationPaths) ? Math.floor(simulationPaths) : 10000)
+
   onProgress?.(0.1, 'Analyzing 100,000 Order Dataset')
 
   // ─── 1. 100K Order Quantitative Analytics ──────────────────────────────────
@@ -113,7 +115,7 @@ export function calculateRiskAnalytics(
   }
 
   // ─── 3. Monte Carlo Simulation Engine (10,000 Paths) ───────────────────────
-  const simulatedReturns: number[] = new Array(simulationPaths)
+  const simulatedReturns: number[] = new Array(safeSimulationPaths)
   const dailyVolatility = 0.035 // ~3.5% daily volatility for crypto
   const dt = timeHorizonDays / 365
   const sqrtDt = Math.sqrt(dt)
@@ -129,7 +131,7 @@ export function calculateRiskAnalytics(
   let negativeReturnSumSquares = 0
   let negativeReturnCount = 0
 
-  for (let p = 0; p < simulationPaths; p++) {
+  for (let p = 0; p < safeSimulationPaths; p++) {
     const z = randomNormal()
     const pathReturn = drift - 0.5 * dailyVolatility * dailyVolatility * dt + dailyVolatility * sqrtDt * z
     simulatedReturns[p] = pathReturn
@@ -151,15 +153,15 @@ export function calculateRiskAnalytics(
 
   const varResults: ValueAtRiskResult[] = confidenceLevels.map((conf) => {
     const alpha = 1.0 - conf
-    const index = Math.max(0, Math.floor(alpha * simulationPaths))
-    const varReturn = -simulatedReturns[index]! // Loss is positive VaR
+    const index = Math.max(0, Math.min(safeSimulationPaths - 1, Math.floor(alpha * safeSimulationPaths)))
+    const varReturn = -(simulatedReturns[index] ?? 0) // Loss is positive VaR
     const varAmount = Math.max(0, Number((varReturn * totalPortfolioValue).toFixed(2)))
     const varPercent = Math.max(0, Number((varReturn * 100).toFixed(2)))
 
     // Expected Shortfall (CVaR) = average loss in tail beyond VaR threshold
     let tailSum = 0
     for (let t = 0; t <= index; t++) {
-      tailSum += -simulatedReturns[t]!
+      tailSum += -(simulatedReturns[t] ?? 0)
     }
     const expectedShortfall = Number(((tailSum / (index + 1)) * totalPortfolioValue).toFixed(2))
 
@@ -172,15 +174,15 @@ export function calculateRiskAnalytics(
   })
 
   // Sharpe & Sortino calculation
-  const meanReturn = simulatedReturns.reduce((acc, v) => acc + v, 0) / simulationPaths
-  const variance = simulatedReturns.reduce((acc, v) => acc + Math.pow(v - meanReturn, 2), 0) / simulationPaths
+  const meanReturn = simulatedReturns.reduce((acc, v) => acc + v, 0) / safeSimulationPaths
+  const variance = simulatedReturns.reduce((acc, v) => acc + Math.pow(v - meanReturn, 2), 0) / safeSimulationPaths
   const stdDev = Math.sqrt(variance)
   const downsideDev = negativeReturnCount > 0 ? Math.sqrt(negativeReturnSumSquares / negativeReturnCount) : stdDev
   const riskFreeRate = 0.04 / 365
 
   const sharpeRatio = stdDev > 0 ? Number(((meanReturn - riskFreeRate) / stdDev).toFixed(2)) : 1.45
   const sortinoRatio = downsideDev > 0 ? Number(((meanReturn - riskFreeRate) / downsideDev).toFixed(2)) : 1.85
-  const maxDrawdownPercent = Math.min(100, Math.max(5, Number((Math.abs(simulatedReturns[0]!) * 100 * 2.2).toFixed(2))))
+  const maxDrawdownPercent = Math.min(100, Math.max(5, Number((Math.abs(simulatedReturns[0] ?? 0) * 100 * 2.2).toFixed(2))))
 
   const orderAnalytics: OrderAnalyticsSummary = {
     totalOrdersAnalyzed: nOrders,

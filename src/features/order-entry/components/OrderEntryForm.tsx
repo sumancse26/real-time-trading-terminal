@@ -48,6 +48,13 @@ const OrderEntryFormInner: React.FC<OrderEntryFormInnerProps> = ({ selectedSymbo
     setTimeout(() => setFlashSide(null), 300)
   }
 
+  // Reset / sync price when active selectedSymbol changes
+  useEffect(() => {
+    if (selectedTicker?.lastPrice) {
+      setPrice(selectedTicker.lastPrice.toFixed(selectedTicker.lastPrice > 10 ? 2 : 4))
+    }
+  }, [selectedSymbol, selectedTicker?.lastPrice])
+
   // Sync prefilled price and quantity from Order Book click via store subscription
   useEffect(() => {
     let lastTs = 0
