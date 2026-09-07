@@ -150,3 +150,26 @@ export function formatTimestamp(
       })} ${date.toLocaleTimeString('en-US', { hour12: false })}`
   }
 }
+
+/**
+ * Formats a raw byte count into human-readable data size (B, KB, MB, GB, TB).
+ */
+export function formatBytes(
+  bytes: number | null | undefined,
+  decimals: number = 2
+): string {
+  if (bytes === null || bytes === undefined || !Number.isFinite(bytes) || bytes <= 0) {
+    return '0 B'
+  }
+
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1)
+
+  if (i === 0) {
+    return `${Math.round(bytes)} B`
+  }
+
+  return `${(bytes / Math.pow(k, i)).toFixed(decimals)} ${sizes[i]}`
+}
+

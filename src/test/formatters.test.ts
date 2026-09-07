@@ -6,6 +6,7 @@ import {
   formatQuantity,
   formatCurrency,
   formatTimestamp,
+  formatBytes,
 } from '../utils/formatters'
 
 describe('Formatting Utilities', () => {
@@ -98,4 +99,28 @@ describe('Formatting Utilities', () => {
       expect(formatTimestamp(NaN)).toBe('--:--:--')
     })
   })
+
+  describe('formatBytes', () => {
+    it('formats raw bytes into human readable units', () => {
+      expect(formatBytes(0)).toBe('0 B')
+      expect(formatBytes(512)).toBe('512 B')
+      expect(formatBytes(1024)).toBe('1.00 KB')
+      expect(formatBytes(1536)).toBe('1.50 KB')
+      expect(formatBytes(1048576)).toBe('1.00 MB')
+      expect(formatBytes(1073741824)).toBe('1.00 GB')
+    })
+
+    it('respects decimal precision', () => {
+      expect(formatBytes(1536, 0)).toBe('2 KB')
+      expect(formatBytes(1536, 1)).toBe('1.5 KB')
+    })
+
+    it('handles negative, null, and non-finite values safely', () => {
+      expect(formatBytes(-100)).toBe('0 B')
+      expect(formatBytes(null)).toBe('0 B')
+      expect(formatBytes(undefined)).toBe('0 B')
+      expect(formatBytes(NaN)).toBe('0 B')
+    })
+  })
 })
+
