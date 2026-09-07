@@ -1,9 +1,10 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useSelectedTicker } from '@/core/store/useMarketStore'
-import { useConnectionStatus, useConnectionLatency } from '@/core/store/useConnectionStore'
+import { useErrorLogStore } from '@/core/store/useErrorLogStore'
 import { Badge } from '@/components/ui/Badge'
+import { ConnectionStatusIndicator } from './ConnectionStatusIndicator'
 import { formatPrice, formatPercent, formatVolume, formatQuantity } from '@/utils/formatters'
-import { Activity, ShieldCheck, Zap, Bell, Volume2, Wifi, WifiOff, Command } from 'lucide-react'
+import { Activity, ShieldCheck, Zap, Bell, Volume2, Command, AlertTriangle, X } from 'lucide-react'
 
 export interface TerminalHeaderProps {
   onOpenShortcuts?: () => void
@@ -11,8 +12,11 @@ export interface TerminalHeaderProps {
 
 export const TerminalHeader: React.FC<TerminalHeaderProps> = ({ onOpenShortcuts }) => {
   const ticker = useSelectedTicker()
-  const connectionStatus = useConnectionStatus()
-  const latency = useConnectionLatency()
+  const errorLogs = useErrorLogStore((s) => s.logs)
+  const unreadErrors = useErrorLogStore((s) => s.unreadCount)
+  const clearLogs = useErrorLogStore((s) => s.clearLogs)
+  const markAllRead = useErrorLogStore((s) => s.markAllRead)
+  const [showErrorDrawer, setShowErrorDrawer] = useState(false)
 
   const isPositive = (ticker?.priceChangePercent24h ?? 0) >= 0
 
@@ -25,46 +29,11 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({ onOpenShortcuts 
   const volume24h = ticker?.volume24h ?? 42890.45
   const turnover24h = ticker?.turnover24h ?? 2758410290
 
-  const renderConnectionBadge = () => {
-    switch (connectionStatus) {
-      case 'CONNECTED':
-        return (
-          <Badge variant="cyan" className="connection-badge">
-            <Wifi size={12} className="inline mr-1" />
-            WS LIVE ({latency}ms)
-          </Badge>
-        )
-      case 'RECONNECTING':
-        return (
-          <Badge variant="warning" className="connection-badge">
-            <Wifi size={12} className="inline mr-1" />
-            RECONNECTING…
-          </Badge>
-        )
-      case 'CONNECTING':
-        return (
-          <Badge variant="neutral" className="connection-badge">
-            <Wifi size={12} className="inline mr-1" />
-            CONNECTING…
-          </Badge>
-        )
-      case 'DEGRADED':
-        return (
-          <Badge variant="warning" className="connection-badge">
-            <Wifi size={12} className="inline mr-1" />
-            WS DEGRADED
-          </Badge>
-        )
-      case 'ERROR':
-      case 'DISCONNECTED':
-      default:
-        return (
-          <Badge variant="sell" className="connection-badge">
-            <WifiOff size={12} className="inline mr-1" />
-            WS OFFLINE
-          </Badge>
-        )
+  const toggleErrorDrawer = () => {
+    if (!showErrorDrawer) {
+      markAllRead()
     }
+    setShowErrorDrawer(!showErrorDrawer)
   }
 
   return (
@@ -116,7 +85,7 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({ onOpenShortcuts 
 
       <div className="header-right">
         <div className="status-indicators">
-          {renderConnectionBadge()}
+          <ConnectionStatusIndicator />
           <Badge variant="neutral" className="engine-badge">
             <Activity size={12} className="inline mr-1" />
             L2 ORDERBOOK
@@ -128,11 +97,23 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({ onOpenShortcuts 
         </div>
 
         <div className="header-actions">
+          <button
+            type="button"
+            className={`icon-btn ${unreadErrors > 0 ? 'text-warning relative' : ''}`}
+            onClick={toggleErrorDrawer}
+            title={`System Logs (${errorLogs.length} events)`}
+            aria-label="System Logs"
+            data-testid="error-log-btn"
+          >
+            <Bell size={16} />
+            {unreadErrors > 0 && (
+              <span className="notification-dot" data-testid="error-unread-count">
+                {unreadErrors}
+              </span>
+            )}
+          </button>
           <button className="icon-btn" title="Audio Alerts" aria-label="Audio Alerts">
             <Volume2 size={16} />
-          </button>
-          <button className="icon-btn" title="Notifications" aria-label="Notifications">
-            <Bell size={16} />
           </button>
           <button
             className="icon-btn"
@@ -149,6 +130,61 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({ onOpenShortcuts 
           </div>
         </div>
       </div>
+
+      {/* System Error & Resilience Event Drawer */}
+      {showErrorDrawer && (
+        <div className="system-log-drawer" data-testid="system-log-drawer">
+          <div className="drawer-header">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={16} className="text-warning" />
+              <span className="font-semibold text-sm">System Event & Resilience Log</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {errorLogs.length > 0 && (
+                <button
+                  type="button"
+                  className="drawer-clear-btn"
+                  onClick={clearLogs}
+                  data-testid="clear-logs-btn"
+                >
+                  Clear
+                </button>
+              )}
+              <button
+                type="button"
+                className="drawer-close-btn"
+                onClick={() => setShowErrorDrawer(false)}
+                aria-label="Close logs"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+
+          <div className="drawer-content">
+            {errorLogs.length === 0 ? (
+              <div className="drawer-empty-state">
+                <span className="text-neutral text-xs">No runtime errors or dropped packets recorded.</span>
+              </div>
+            ) : (
+              <div className="log-list">
+                {errorLogs.map((log) => (
+                  <div key={log.id} className={`log-item log-${log.severity.toLowerCase()}`}>
+                    <div className="log-meta">
+                      <span className="log-source">[{log.source}]</span>
+                      <span className="log-time">
+                        {new Date(log.timestamp).toLocaleTimeString()}
+                      </span>
+                    </div>
+                    <div className="log-message">{log.message}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   )
 }
+

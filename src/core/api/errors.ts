@@ -48,6 +48,34 @@ export class RequestAbortedError extends ApiError {
   }
 }
 
+export class TimeoutError extends ApiError {
+  public readonly timeoutMs: number
+
+  constructor(message = 'The request timed out before receiving a response.', timeoutMs = 8000) {
+    super(message, 504, 'REQUEST_TIMEOUT', { timeoutMs })
+    this.name = 'TimeoutError'
+    this.timeoutMs = timeoutMs
+    Object.setPrototypeOf(this, TimeoutError.prototype)
+  }
+}
+
+export class OrderRejectionError extends ApiError {
+  public readonly reason: string
+
+  constructor(
+    message: string,
+    reason = 'ORDER_REJECTED',
+    statusCode = 422,
+    details?: unknown
+  ) {
+    super(message, statusCode, reason, details)
+    this.name = 'OrderRejectionError'
+    this.reason = reason
+    Object.setPrototypeOf(this, OrderRejectionError.prototype)
+  }
+}
+
 export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError
 }
+

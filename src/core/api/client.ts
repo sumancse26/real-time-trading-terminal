@@ -4,6 +4,8 @@ import {
   RateLimitError,
   ValidationError,
   RequestAbortedError,
+  TimeoutError,
+  OrderRejectionError,
 } from './errors'
 import type { MarketTicker, TradeTick } from '@/types/market'
 import type { OrderBookSnapshot, PriceLevel } from '@/types/orderbook'
@@ -17,16 +19,19 @@ export interface MockClientConfig {
   minLatencyMs?: number
   maxLatencyMs?: number
   failureRate?: number // 0.0 to 1.0
-  simulatedErrorType?: 'network' | 'rateLimit' | 'server' | 'validation' | null
+  requestTimeoutMs?: number
+  simulatedErrorType?: 'network' | 'rateLimit' | 'server' | 'validation' | 'timeout' | 'orderRejection' | null
 }
 
 export class MockHttpClient {
   private minLatency: number
   private maxLatency: number
   private failureRate: number
-  private simulatedErrorType: 'network' | 'rateLimit' | 'server' | 'validation' | null
+  private requestTimeoutMs: number
+  private simulatedErrorType: 'network' | 'rateLimit' | 'server' | 'validation' | 'timeout' | 'orderRejection' | null
   private latestRequestSequences: Map<string, number> = new Map()
   private requestCounter = 0
+
 
   // In-memory mock store
   private orders: ActiveOrder[] = [
@@ -125,6 +130,7 @@ export class MockHttpClient {
     this.minLatency = config.minLatencyMs ?? 40
     this.maxLatency = config.maxLatencyMs ?? 120
     this.failureRate = config.failureRate ?? 0
+    this.requestTimeoutMs = config.requestTimeoutMs ?? 8000
     this.simulatedErrorType = config.simulatedErrorType ?? null
   }
 
@@ -132,11 +138,12 @@ export class MockHttpClient {
     if (config.minLatencyMs !== undefined) this.minLatency = config.minLatencyMs
     if (config.maxLatencyMs !== undefined) this.maxLatency = config.maxLatencyMs
     if (config.failureRate !== undefined) this.failureRate = config.failureRate
+    if (config.requestTimeoutMs !== undefined) this.requestTimeoutMs = config.requestTimeoutMs
     if (config.simulatedErrorType !== undefined) this.simulatedErrorType = config.simulatedErrorType
   }
 
   /**
-   * Simulates network latency with cancellation support and race condition protection.
+   * Simulates network latency with timeout support, cancellation support and race condition protection.
    */
   private async simulateNetwork(
     endpointKey?: string,
@@ -153,6 +160,16 @@ export class MockHttpClient {
 
     const latency =
       this.minLatency + Math.floor(Math.random() * (this.maxLatency - this.minLatency + 1))
+
+    // Handle simulated timeout
+    if (this.simulatedErrorType === 'timeout') {
+      throw new TimeoutError('Request timed out while waiting for server response', this.requestTimeoutMs)
+    }
+
+    // Handle simulated order rejection
+    if (this.simulatedErrorType === 'orderRejection') {
+      throw new OrderRejectionError('Order rejected by risk engine: Position limit exceeded', 'RISK_LIMIT_EXCEEDED', 422)
+    }
 
     if (latency > 0) {
       await new Promise<void>((resolve, reject) => {

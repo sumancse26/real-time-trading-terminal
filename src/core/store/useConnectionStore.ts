@@ -3,8 +3,14 @@ import type { ConnectionStatus, ConnectionMetrics } from '@/types/connection'
 
 export interface ConnectionState extends ConnectionMetrics {
   activeSubscriptions: string[]
+  lastError: string | null
   setStatus: (status: ConnectionStatus) => void
   setLatency: (latencyMs: number) => void
+  setReconnectCountdown: (seconds: number | null) => void
+  setMaxReconnectAttempts: (max: number) => void
+  incrementMalformedMessages: () => void
+  setNetworkOnline: (isOnline: boolean) => void
+  setLastError: (error: string | null) => void
   recordMessageReceived: (byteLength?: number) => void
   recordMessageSent: () => void
   recordReconnectAttempt: () => void
@@ -19,12 +25,17 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
   status: 'DISCONNECTED',
   latencyMs: 12,
   reconnectAttempts: 0,
+  maxReconnectAttempts: 5,
+  reconnectCountdown: null,
   messagesReceived: 0,
   messagesSent: 0,
   bytesReceived: 0,
+  malformedMessagesCount: 0,
+  isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
   lastHeartbeat: Date.now(),
   connectedSince: null,
   activeSubscriptions: [],
+  lastError: null,
 
   setStatus: (status: ConnectionStatus) => {
     const current = get().status
@@ -33,11 +44,34 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     set({
       status,
       connectedSince: status === 'CONNECTED' ? Date.now() : status === 'DISCONNECTED' ? null : get().connectedSince,
+      reconnectCountdown: status === 'CONNECTED' || status === 'DISCONNECTED' ? null : get().reconnectCountdown,
     })
   },
 
   setLatency: (latencyMs: number) => {
     set({ latencyMs })
+  },
+
+  setReconnectCountdown: (reconnectCountdown: number | null) => {
+    set({ reconnectCountdown })
+  },
+
+  setMaxReconnectAttempts: (maxReconnectAttempts: number) => {
+    set({ maxReconnectAttempts })
+  },
+
+  incrementMalformedMessages: () => {
+    set(state => ({
+      malformedMessagesCount: state.malformedMessagesCount + 1,
+    }))
+  },
+
+  setNetworkOnline: (isOnline: boolean) => {
+    set({ isOnline })
+  },
+
+  setLastError: (lastError: string | null) => {
+    set({ lastError })
   },
 
   recordMessageReceived: (byteLength = 128) => {
@@ -60,7 +94,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
   },
 
   resetReconnectAttempts: () => {
-    set({ reconnectAttempts: 0 })
+    set({ reconnectAttempts: 0, reconnectCountdown: null })
   },
 
   setLastHeartbeat: (timestamp: number) => {
@@ -91,3 +125,10 @@ export const useConnectionStatus = (): ConnectionStatus =>
 
 export const useConnectionLatency = (): number =>
   useConnectionStore(state => state.latencyMs)
+
+export const useReconnectCountdown = (): number | null =>
+  useConnectionStore(state => state.reconnectCountdown)
+
+export const useMalformedMessagesCount = (): number =>
+  useConnectionStore(state => state.malformedMessagesCount)
+

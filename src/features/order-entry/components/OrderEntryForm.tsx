@@ -3,6 +3,7 @@ import type { OrderType, Side } from '@/types/order'
 import { useCreateOrderMutation } from '@/core/query'
 import { useAccountSummaryQuery } from '@/core/query/hooks/useAccountQueries'
 import { useSelectedSymbol, useSelectedTicker, useMarketStore } from '@/core/store/useMarketStore'
+import { useErrorLogStore } from '@/core/store/useErrorLogStore'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { formatPrice } from '@/utils/formatters'
@@ -153,8 +154,15 @@ const OrderEntryFormInner: React.FC<OrderEntryFormInnerProps> = ({ selectedSymbo
           setTimeout(() => setFeedbackMsg(null), 5000)
         },
         onError: err => {
+          const errorMessage = (err as Error).message || 'Order rejected by exchange'
+          useErrorLogStore.getState().logError(
+            'OrderEntry',
+            `Order placement failed: ${errorMessage}`,
+            { symbol: selectedSymbol, side, type: orderType, price: numPrice, quantity: numAmount },
+            'ERROR'
+          )
           setFeedbackMsg({
-            text: `Order placement failed: ${(err as Error).message}`,
+            text: `Order placement failed: ${errorMessage}`,
             isError: true,
           })
         },

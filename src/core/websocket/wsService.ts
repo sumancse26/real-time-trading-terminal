@@ -9,6 +9,7 @@ import type {
 } from '@/types/websocket'
 import type { ConnectionStatus } from '@/types/connection'
 import { useConnectionStore } from '../store/useConnectionStore'
+import { useErrorLogStore } from '../store/useErrorLogStore'
 
 export interface WsServiceConfig {
   heartbeatIntervalMs?: number
@@ -16,6 +17,7 @@ export interface WsServiceConfig {
   maxReconnectAttempts?: number
   baseReconnectDelayMs?: number
   maxReconnectDelayMs?: number
+  backoffSchedule?: number[]
 }
 
 type MessageListener = (msg: WsServerMessage) => void
@@ -41,9 +43,14 @@ export class WebSocketService {
   private heartbeatTimer: number | null = null
   private heartbeatTimeoutTimer: number | null = null
   private reconnectTimer: number | null = null
+  private countdownTimer: number | null = null
   private reconnectAttempts = 0
   private lastPingSentTimestamp = 0
   private isExplicitlyClosed = false
+  private onlineListenerAttached = false
+
+  // Exponential backoff schedule: 1s, 2s, 4s, 8s, 16s
+  public static readonly DEFAULT_BACKOFF_SCHEDULE = [1000, 2000, 4000, 8000, 16000]
 
   constructor(config: WsServiceConfig = {}) {
     this.config = {
@@ -51,18 +58,55 @@ export class WebSocketService {
       heartbeatTimeoutMs: config.heartbeatTimeoutMs ?? 5_000,
       maxReconnectAttempts: config.maxReconnectAttempts ?? 5,
       baseReconnectDelayMs: config.baseReconnectDelayMs ?? 1_000,
-      maxReconnectDelayMs: config.maxReconnectDelayMs ?? 10_000,
+      maxReconnectDelayMs: config.maxReconnectDelayMs ?? 16_000,
+      backoffSchedule: config.backoffSchedule ?? WebSocketService.DEFAULT_BACKOFF_SCHEDULE,
     }
+
+    useConnectionStore.getState().setMaxReconnectAttempts(this.config.maxReconnectAttempts)
+    this.initNetworkStatusListeners()
+  }
+
+  private initNetworkStatusListeners(): void {
+    if (typeof window === 'undefined' || this.onlineListenerAttached) return
+    this.onlineListenerAttached = true
+
+    window.addEventListener('online', () => {
+      useConnectionStore.getState().setNetworkOnline(true)
+      useErrorLogStore.getState().logError('Network', 'Network connection restored. Reconnecting WebSocket...', undefined, 'INFO')
+      if (this.status === 'DISCONNECTED' || this.status === 'ERROR' || this.status === 'RECONNECTING') {
+        this.reconnectNow()
+      }
+    })
+
+    window.addEventListener('offline', () => {
+      useConnectionStore.getState().setNetworkOnline(false)
+      useErrorLogStore.getState().logError('Network', 'Browser went offline. Network connectivity lost.', undefined, 'WARN')
+      this.setStatus('DISCONNECTED')
+    })
   }
 
   public getStatus(): ConnectionStatus {
     return this.status
   }
 
+  public getReconnectAttempts(): number {
+    return this.reconnectAttempts
+  }
+
+  public getBackoffDelay(attempt: number): number {
+    const schedule = this.config.backoffSchedule
+    const index = Math.max(0, attempt - 1)
+    if (index < schedule.length) {
+      return schedule[index]!
+    }
+    return schedule[schedule.length - 1] ?? 16000
+  }
+
   public connect(): void {
     if (this.status === 'CONNECTED' || this.status === 'CONNECTING') return
 
     this.isExplicitlyClosed = false
+    this.clearReconnectTimer()
     this.setStatus('CONNECTING')
 
     try {
@@ -73,11 +117,15 @@ export class WebSocketService {
       this.setStatus('CONNECTED')
       this.reconnectAttempts = 0
       useConnectionStore.getState().resetReconnectAttempts()
+      useConnectionStore.getState().setLastError(null)
 
       this.startHeartbeat()
       this.resubscribeActiveTopics()
     } catch (err) {
       this.setStatus('ERROR')
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      useConnectionStore.getState().setLastError(errorMessage)
+      useErrorLogStore.getState().logError('WebSocket', `Connection failed: ${errorMessage}`, err)
       this.notifyError(err)
       this.scheduleReconnect()
     }
@@ -97,6 +145,18 @@ export class WebSocketService {
   }
 
   public reconnect(): void {
+    this.disconnect()
+    this.connect()
+  }
+
+  /**
+   * Immediately triggers reconnection without waiting for active backoff countdown.
+   */
+  public reconnectNow(): void {
+    this.clearReconnectTimer()
+    this.reconnectAttempts = 0
+    useConnectionStore.getState().resetReconnectAttempts()
+    this.isExplicitlyClosed = false
     this.disconnect()
     this.connect()
   }
@@ -147,6 +207,7 @@ export class WebSocketService {
       useConnectionStore.getState().recordMessageSent()
       return true
     } catch (err) {
+      useErrorLogStore.getState().logError('WebSocket', 'Failed to send WS message', { msg, err })
       this.notifyError(err)
       return false
     }
@@ -154,14 +215,20 @@ export class WebSocketService {
 
   /**
    * Safely parses raw incoming messages, validating against domain schemas.
-   * Gracefully ignores corrupted JSON or unknown types without throwing.
+   * Gracefully handles corrupted JSON or unknown structures without crashing.
    */
   public handleIncomingRawMessage(raw: unknown): void {
     useConnectionStore.getState().recordMessageReceived(typeof raw === 'string' ? raw.length : 128)
 
     const parseResult = parseWsServerMessage(raw)
     if (!parseResult.success) {
-      // Safely ignore malformed or unknown packets and notify error listeners
+      useConnectionStore.getState().incrementMalformedMessages()
+      useErrorLogStore.getState().logError(
+        'WebSocket',
+        `Malformed or unrecognized message packet: ${parseResult.error}`,
+        { rawPayload: raw },
+        'WARN'
+      )
       this.notifyError(new Error(parseResult.error))
       return
     }
@@ -179,6 +246,7 @@ export class WebSocketService {
       try {
         listener(message)
       } catch (err) {
+        useErrorLogStore.getState().logError('WebSocket', 'Error in global message listener', err)
         this.notifyError(err)
       }
     }
@@ -190,10 +258,34 @@ export class WebSocketService {
         try {
           listener(message)
         } catch (err) {
+          useErrorLogStore.getState().logError('WebSocket', `Error in typed listener (${message.type})`, err)
           this.notifyError(err)
         }
       }
     }
+  }
+
+  // --- Simulation Triggers for Testing & UI Diagnostics ---
+
+  public simulateDisconnect(): void {
+    useErrorLogStore.getState().logError('WebSocket', 'Simulated connection drop triggered', undefined, 'WARN')
+    if (this.serverTransport) {
+      this.serverTransport.disconnect()
+      this.serverTransport = null
+    }
+    this.stopHeartbeat()
+    this.setStatus('DISCONNECTED')
+    this.scheduleReconnect()
+  }
+
+  public simulateMalformedMessage(rawPayload: unknown = '{"malformed_json: true,'): void {
+    this.handleIncomingRawMessage(rawPayload)
+  }
+
+  public simulateLatencySpike(latencyMs = 450): void {
+    useConnectionStore.getState().setLatency(latencyMs)
+    this.setStatus('DEGRADED')
+    useErrorLogStore.getState().logError('WebSocket', `High latency detected (${latencyMs}ms)`, undefined, 'WARN')
   }
 
   // --- Listener Subscriptions ---
@@ -273,6 +365,7 @@ export class WebSocketService {
       this.heartbeatTimeoutTimer = window.setTimeout(() => {
         // Connection dead - trigger reconnect
         this.setStatus('DEGRADED')
+        useErrorLogStore.getState().logError('WebSocket', 'Heartbeat timeout. Connection degraded, attempting reconnect.', undefined, 'WARN')
         this.scheduleReconnect()
       }, this.config.heartbeatTimeoutMs)
     }, this.config.heartbeatIntervalMs)
@@ -327,20 +420,37 @@ export class WebSocketService {
     if (this.isExplicitlyClosed) return
     if (this.reconnectAttempts >= this.config.maxReconnectAttempts) {
       this.setStatus('ERROR')
+      useConnectionStore.getState().setReconnectCountdown(null)
+      useErrorLogStore.getState().logError('WebSocket', `Maximum reconnect attempts (${this.config.maxReconnectAttempts}) reached. Connection offline.`, undefined, 'ERROR')
       return
     }
 
+    this.clearReconnectTimer()
     this.setStatus('RECONNECTING')
     this.reconnectAttempts++
     useConnectionStore.getState().recordReconnectAttempt()
 
-    const delay = Math.min(
-      this.config.baseReconnectDelayMs * 2 ** (this.reconnectAttempts - 1),
-      this.config.maxReconnectDelayMs
-    )
+    // 1s, 2s, 4s, 8s, 16s backoff
+    const delay = this.getBackoffDelay(this.reconnectAttempts)
+    let remainingSeconds = Math.ceil(delay / 1000)
+    useConnectionStore.getState().setReconnectCountdown(remainingSeconds)
 
-    this.clearReconnectTimer()
+    // Countdown interval
+    this.countdownTimer = window.setInterval(() => {
+      remainingSeconds -= 1
+      if (remainingSeconds > 0) {
+        useConnectionStore.getState().setReconnectCountdown(remainingSeconds)
+      } else {
+        useConnectionStore.getState().setReconnectCountdown(null)
+        if (this.countdownTimer !== null) {
+          clearInterval(this.countdownTimer)
+          this.countdownTimer = null
+        }
+      }
+    }, 1000)
+
     this.reconnectTimer = window.setTimeout(() => {
+      this.clearReconnectTimer()
       this.connect()
     }, delay)
   }
@@ -350,6 +460,11 @@ export class WebSocketService {
       clearTimeout(this.reconnectTimer)
       this.reconnectTimer = null
     }
+    if (this.countdownTimer !== null) {
+      clearInterval(this.countdownTimer)
+      this.countdownTimer = null
+    }
+    useConnectionStore.getState().setReconnectCountdown(null)
   }
 }
 

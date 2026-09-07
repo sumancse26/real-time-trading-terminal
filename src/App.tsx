@@ -10,6 +10,7 @@ import { TradesStreamView } from '@/features/trades-stream/components/TradesStre
 import { OrderEntryForm } from '@/features/order-entry/components/OrderEntryForm'
 import { PositionsView } from '@/features/positions-portfolio/components/PositionsView'
 import { KeyboardShortcutsModal } from '@/components/ui/KeyboardShortcutsModal'
+import { GlobalErrorBoundary, WidgetErrorBoundary } from '@/components/ui/ErrorBoundary'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { feedSimulator } from '@/core/stream/mockFeed'
 
@@ -36,32 +37,44 @@ export const AppContent: React.FC = () => {
       <main className="terminal-layout">
         {/* Col 1 — Watchlist, spans rows 1+2 */}
         <div className="watchlist-grid-cell">
-          <WatchlistPanel />
+          <WidgetErrorBoundary widgetName="Watchlist">
+            <WatchlistPanel />
+          </WidgetErrorBoundary>
         </div>
 
         {/* Col 2 row 1 — Chart */}
         <div className="chart-grid-cell">
-          <TradingChartPlaceholder />
+          <WidgetErrorBoundary widgetName="Trading Chart">
+            <TradingChartPlaceholder />
+          </WidgetErrorBoundary>
         </div>
 
         {/* Col 2 row 2 — Trades Stream */}
         <div className="trades-grid-cell">
-          <TradesStreamView />
+          <WidgetErrorBoundary widgetName="Trades Stream">
+            <TradesStreamView />
+          </WidgetErrorBoundary>
         </div>
 
         {/* Col 3 — Order Book, spans rows 1+2 */}
         <div className="orderbook-grid-cell">
-          <OrderBookView />
+          <WidgetErrorBoundary widgetName="Order Book">
+            <OrderBookView />
+          </WidgetErrorBoundary>
         </div>
 
         {/* Col 4 — Order Entry, spans rows 1+2 */}
         <div className="orderentry-grid-cell">
-          <OrderEntryForm />
+          <WidgetErrorBoundary widgetName="Order Entry">
+            <OrderEntryForm />
+          </WidgetErrorBoundary>
         </div>
 
         {/* Full-width row 3 — Positions / Orders */}
         <div className="positions-grid-cell">
-          <PositionsView />
+          <WidgetErrorBoundary widgetName="Positions & Portfolio">
+            <PositionsView />
+          </WidgetErrorBoundary>
         </div>
       </main>
 
@@ -76,9 +89,11 @@ export const AppContent: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AppContent />
-    </QueryClientProvider>
+    <GlobalErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AppContent />
+      </QueryClientProvider>
+    </GlobalErrorBoundary>
   )
 }
 
