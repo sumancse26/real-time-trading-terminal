@@ -34,7 +34,7 @@ export class GlobalErrorBoundary extends Component<
     return { hasError: true, error }
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+  override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     this.setState({ errorInfo })
     useErrorLogStore
       .getState()
@@ -75,7 +75,7 @@ export class GlobalErrorBoundary extends Component<
     }
   }
 
-  render(): ReactNode {
+  override render(): ReactNode {
     if (this.state.hasError) {
       if (this.props.fallback && this.state.error) {
         return this.props.fallback(this.state.error, this.handleReset)
@@ -196,7 +196,7 @@ export class WidgetErrorBoundary extends Component<
     return { hasError: true, error }
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+  override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     useErrorLogStore
       .getState()
       .logError(
@@ -213,7 +213,7 @@ export class WidgetErrorBoundary extends Component<
     this.props.onReset?.()
   }
 
-  render(): ReactNode {
+  override render(): ReactNode {
     if (this.state.hasError) {
       return (
         <div

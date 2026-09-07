@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
-import React, { useRef } from 'react'
+import { useRef } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AppContent } from '@/App'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
