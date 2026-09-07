@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Trading Terminal — Business Logic</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; background: #071018; overflow: hidden; font-family: Arial, sans-serif; }
+    #stage { width: 1280px; height: 720px; display: block; margin: 0 auto; background: #071018; }
+    #start { position: fixed; inset: 0; margin: auto; width: 260px; height: 56px; border: 1px solid #37d7ff; border-radius: 8px; background: #0d2632; color: #dffaff; font-size: 18px; cursor: pointer; }
+    #status { position: fixed; left: 16px; bottom: 12px; color: #63808d; font: 12px monospace; }
+  </style>
+</head>
+<body>
+<canvas id="stage" width="1280" height="720"></canvas>
+<button id="start">Start audio-guided recording</button>
+<div id="status">Ready</div>
+<script>
+const slides = [
+  { title: 'TRADING TERMINAL', sub: 'Business logic and operating model', body: ['A simulated cryptocurrency derivatives workspace', 'React + TypeScript + Zustand + TanStack Query', 'Market data, order entry, portfolio, risk, and telemetry'], duration: 6500, accent: '#37d7ff' },
+  { title: '1 · MARKET WORKSPACE', sub: 'The screen is organized around the trader’s decision loop', body: ['Watchlist selects the active symbol', 'Live trades show the latest 25 executions', 'Order book exposes level-2 supply and demand', 'Order entry and portfolio remain visible together'], duration: 7000, accent: '#37d7ff' },
+  { title: '2 · MARKET DATA FLOW', sub: 'The simulator behaves like a high-frequency exchange feed', body: ['Prices are maintained for six symbols', 'Each tick updates price, trade, ticker, and primary-symbol depth', '20 ticks/sec by default; presets reach 1,000 ticks/sec', 'Updates are batched to animation frames before React renders'], duration: 8000, accent: '#37d7ff' },
+  { title: '3 · WATCHLIST + ORDER BOOK', sub: 'Market state is normalized and transformed for display', body: ['Search by symbol or base asset; filter favorites; sort fields', 'Book levels aggregate into price buckets', 'Bids floor prices; asks ceil prices', 'Spread = ask − bid; midpoint = (ask + bid) / 2', 'Clicking a level prefills a limit order'], duration: 8500, accent: '#20d6a0' },
+  { title: '4 · ORDER ENTRY', sub: 'Every order is estimated and validated before submission', body: ['Notional = effective price × quantity', 'Maker fee: 0.02%; market/taker fee: 0.04%', 'Initial margin = notional ÷ leverage', 'Total outlay = margin + estimated fee', 'Minimum notional: $5; outlay must fit available margin'], duration: 8500, accent: '#f2bd4b' },
+  { title: '5 · ORDER LIFECYCLE', sub: 'The UI feels immediate while remaining recoverable', body: ['Insert a temporary PENDING order optimistically', 'Call the mock exchange API', 'Replace the temporary id on success', 'Rollback cached orders on failure', 'Invalidate order and account queries afterward', 'Duplicate submissions inside 500 ms are rejected'], duration: 8500, accent: '#f2bd4b' },
+  { title: '6 · POSITIONS + PNL', sub: 'Directional exposure is recalculated from mark prices', body: ['LONG PnL = (mark − entry) × size', 'SHORT PnL = (entry − mark) × size', 'Margin = size × entry ÷ leverage', 'ROE = unrealized PnL ÷ margin', 'Liquidation uses a 0.5% maintenance-margin approximation'], duration: 8500, accent: '#20d6a0' },
+  { title: '7 · FILL TRANSITIONS', sub: 'The domain utility handles the full position state machine', body: ['No position → open in fill direction', 'Same direction → weighted-average entry', 'Opposite direction → reduce or close', 'Oversized opposite fill → realize PnL and flip', 'Full close returns no active position'], duration: 8000, accent: '#20d6a0' },
+  { title: '8 · PORTFOLIO OPERATIONS', sub: 'One panel exposes the trader’s operational records', body: ['Positions: live mark-price metrics and market close', 'Open orders: inspect and cancel', 'History: completed and cancelled records', '100K archive: search, filter, sort, and virtualize', 'Risk: worker-based portfolio and execution analytics'], duration: 7500, accent: '#a982ff' },
+  { title: '9 · RISK ENGINE', sub: 'Heavy analytics run off the main UI thread', body: ['Analyze 100,000 generated orders in one pass', 'Calculate fill rate, VWAP, volume, side/status breakdown', 'Estimate synthetic slippage percentiles', 'Run 10,000 Monte Carlo return paths', 'Report 95% and 99% VaR plus expected shortfall'], duration: 9000, accent: '#a982ff' },
+  { title: '10 · RESILIENCE', sub: 'External data is treated as untrusted and recoverable', body: ['Validate WebSocket payloads before dispatch', 'Track malformed messages and structured error logs', 'Heartbeat every 10 seconds with a 5-second timeout', 'Reconnect with 1 / 2 / 4 / 8 / 16 second backoff', 'Restore active subscriptions after reconnect'], duration: 8000, accent: '#ff6c7d' },
+  { title: '11 · PERFORMANCE CONTRACT', sub: 'The terminal protects interaction under high message rates', body: ['RAF batching caps UI dispatch near display refresh', 'Ring buffers retain bounded trade history', 'Deadband skips insignificant ticker state changes', 'Memoized rows and virtualized archive reduce DOM work', 'Telemetry measures FPS, throughput, lag, batching, and renders'], duration: 8000, accent: '#37d7ff' },
+  { title: '12 · WHAT THIS PROJECT IS', sub: 'A business-logic-rich exchange-terminal simulation', body: ['It is not connected to a live venue', 'State is in memory and resets on refresh', 'Orders do not automatically match or fill', 'Margin and liquidation formulas are demonstrative', 'The README documents the path to production hardening'], duration: 8000, accent: '#ff6c7d' },
+  { title: 'END OF WALKTHROUGH', sub: 'Trading Terminal business logic', body: ['Market data → order decision → risk check → portfolio state', 'Every stage is typed, validated, observable, and testable'], duration: 5000, accent: '#37d7ff' }
+];
+
+const canvas = document.getElementById('stage');
+const ctx = canvas.getContext('2d');
+const button = document.getElementById('start');
+const status = document.getElementById('status');
+let audioContext, destination, recorder, chunks = [];
+
+function wrap(text, max) { const words = text.split(' '), lines = []; let line = ''; for (const word of words) { const next = line ? line + ' ' + word : word; if (ctx.measureText(next).width > max && line) { lines.push(line); line = word; } else line = next; } if (line) lines.push(line); return lines; }
+function draw(index, progress) {
+  const s = slides[index]; ctx.fillStyle = '#071018'; ctx.fillRect(0,0,1280,720);
+  const g = ctx.createLinearGradient(0,0,1280,720); g.addColorStop(0,'#0b2230'); g.addColorStop(1,'#071018'); ctx.fillStyle = g; ctx.fillRect(0,0,1280,720);
+  ctx.fillStyle = s.accent; ctx.fillRect(76,76,8,568); ctx.globalAlpha = .08; ctx.beginPath(); ctx.arc(1090,180,240,0,Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
+  ctx.fillStyle = '#6b8996'; ctx.font = '18px monospace'; ctx.fillText('TRADING TERMINAL  /  BUSINESS LOGIC', 112, 105);
+  ctx.fillStyle = '#eefaff'; ctx.font = 'bold 48px Arial'; ctx.fillText(s.title, 112, 190);
+  ctx.fillStyle = s.accent; ctx.font = '24px Arial'; ctx.fillText(s.sub, 114, 236);
+  let y = 315; ctx.font = '26px Arial';
+  for (const line of s.body) { ctx.fillStyle = s.accent; ctx.fillText('›', 120, y); ctx.fillStyle = '#d5e3e8'; for (const wrapped of wrap(line, 980)) { ctx.fillText(wrapped, 158, y); y += 37; } y += 17; }
+  ctx.fillStyle = '#29404b'; ctx.fillRect(112, 664, 1056, 4); ctx.fillStyle = s.accent; ctx.fillRect(112, 664, 1056 * progress, 4);
+  ctx.fillStyle = '#63808d'; ctx.font = '15px monospace'; ctx.fillText(String(index+1).padStart(2,'0') + ' / ' + String(slides.length).padStart(2,'0'), 112, 695);
+}
+
+function tone() { const o = audioContext.createOscillator(), g = audioContext.createGain(); o.frequency.value = 740; g.gain.setValueAtTime(0.0001, audioContext.currentTime); g.gain.exponentialRampToValueAtTime(0.035, audioContext.currentTime + .02); g.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + .18); o.connect(g).connect(destination); o.start(); o.stop(audioContext.currentTime + .2); }
+
+button.onclick = async () => {
+  button.style.display = 'none'; status.textContent = 'Preparing audio-guided recording…';
+  audioContext = new AudioContext(); destination = audioContext.createMediaStreamDestination();
+  const drone = audioContext.createOscillator(), droneGain = audioContext.createGain();
+  drone.type = 'sine'; drone.frequency.value = 110; droneGain.gain.value = 0.012; drone.connect(droneGain).connect(destination); drone.start();
+  const stream = canvas.captureStream(30); for (const track of destination.stream.getAudioTracks()) stream.addTrack(track);
+  recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9,opus' }); chunks = [];
+  recorder.ondataavailable = e => e.data.size && chunks.push(e.data);
+  recorder.onstop = () => { const blob = new Blob(chunks, {type:'video/webm'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'trading-terminal-business-logic.webm'; a.click(); status.textContent = 'Recording complete — downloading WebM'; };
+  recorder.start(1000);
+  let started = performance.now(), elapsed = 0;
+  for (let i=0; i<slides.length; i++) { tone(); const begin = performance.now(); while (performance.now() - begin < slides[i].duration) { const p = Math.min(1, (performance.now()-begin)/slides[i].duration); draw(i,p); await new Promise(r=>requestAnimationFrame(r)); } }
+  recorder.stop(); drone.stop(); audioContext.close();
+};
+draw(0, 0);
+</script>
+</body>
+</html>

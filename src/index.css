@@ -2958,3 +2958,360 @@ select:focus-visible {
   border-radius: 2px;
   box-shadow: none;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   DEVICE RESPONSIVE OVERRIDES
+   Keep every terminal surface mounted at every viewport size. On
+   narrow screens the workspace becomes a vertical document; controls
+   that cannot fit horizontally scroll within their own row instead of
+   being hidden or clipped.
+   ═══════════════════════════════════════════════════════════════════ */
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+.terminal-panel,
+.panel-body,
+.panel-header,
+.panel-title,
+.panel-actions,
+.chart-grid-cell,
+.watchlist-grid-cell,
+.trades-grid-cell,
+.orderbook-grid-cell,
+.orderentry-grid-cell,
+.positions-grid-cell {
+  min-width: 0;
+}
+
+.panel-header {
+  gap: 8px;
+}
+
+.panel-title,
+.panel-actions {
+  min-width: 0;
+}
+
+.panel-title > span,
+.panel-title > div,
+.panel-actions > span {
+  min-width: 0;
+}
+
+/* Keep the complete header available through horizontal scrolling. */
+.terminal-header,
+.telemetry-bar {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.header-left,
+.header-right,
+.telemetry-left,
+.telemetry-metrics {
+  flex-shrink: 0;
+}
+
+@media (max-width: 1199px) {
+  .app-container {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+
+  .terminal-layout {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    padding: 6px;
+    gap: 6px;
+  }
+
+  .watchlist-grid-cell,
+  .chart-grid-cell,
+  .trades-grid-cell,
+  .orderbook-grid-cell,
+  .orderentry-grid-cell,
+  .positions-grid-cell {
+    display: flex;
+    width: 100%;
+    height: auto;
+    max-height: none;
+    flex: none;
+  }
+
+  .watchlist-grid-cell { min-height: 240px; }
+  .chart-grid-cell { min-height: 360px; }
+  .trades-grid-cell { min-height: 220px; }
+  .orderbook-grid-cell { min-height: 420px; }
+  .orderentry-grid-cell { min-height: 0; }
+  .positions-grid-cell { min-height: 300px; }
+
+  .watchlist-grid-cell > .terminal-panel,
+  .chart-grid-cell > .terminal-panel,
+  .trades-grid-cell > .terminal-panel,
+  .orderbook-grid-cell > .terminal-panel,
+  .orderentry-grid-cell > .terminal-panel,
+  .positions-grid-cell > .terminal-panel {
+    min-height: inherit;
+    height: auto;
+    flex: 1 1 auto;
+  }
+
+  .chart-container,
+  .order-book-container {
+    min-height: 300px;
+  }
+
+  .trades-table-container {
+    min-height: 170px;
+  }
+
+  .order-entry-form {
+    max-height: none;
+  }
+}
+
+@media (max-width: 767px) {
+  html,
+  body {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  #root {
+    height: auto;
+    min-height: 100dvh;
+  }
+
+  .app-container {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .terminal-header {
+    align-items: center;
+    flex-wrap: nowrap;
+    min-height: 52px;
+    padding: 6px 10px;
+  }
+
+  .header-left,
+  .header-right {
+    gap: 10px;
+  }
+
+  .header-right .status-indicators,
+  .market-stats-strip,
+  .brand-tag {
+    display: flex;
+  }
+
+  .brand-tag {
+    flex-shrink: 0;
+  }
+
+  .ticker-selector,
+  .market-stats-strip,
+  .status-indicators,
+  .header-actions,
+  .user-profile {
+    flex-shrink: 0;
+  }
+
+  .telemetry-bar {
+    display: flex;
+    justify-content: flex-start;
+    height: 34px;
+    padding: 0 10px;
+    white-space: nowrap;
+  }
+
+  .telemetry-left,
+  .telemetry-metrics {
+    gap: 10px;
+  }
+
+  .terminal-layout {
+    padding: 4px;
+    gap: 4px;
+  }
+
+  .watchlist-grid-cell { min-height: 260px; }
+  .chart-grid-cell { min-height: 300px; }
+  .trades-grid-cell { min-height: 230px; }
+  .orderbook-grid-cell { min-height: 420px; }
+  .positions-grid-cell { min-height: 320px; }
+
+  .panel-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding: 8px 10px;
+  }
+
+  .panel-title {
+    flex: 1 1 100%;
+  }
+
+  .panel-actions {
+    width: 100%;
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding-bottom: 2px;
+  }
+
+  .panel-body {
+    padding: 7px;
+  }
+
+  .chart-hud {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+  }
+
+  .order-entry-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .side-toggle-group,
+  .type-tabs,
+  .percentage-row {
+    flex-wrap: wrap;
+  }
+
+  .side-btn,
+  .type-tab {
+    min-height: 38px;
+  }
+
+  .order-summary-box {
+    font-size: 0.625rem;
+  }
+
+  .portfolio-tabs {
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+  }
+
+  .portfolio-tab-btn {
+    flex: 0 0 auto;
+    min-height: 34px;
+    white-space: nowrap;
+  }
+
+  .positions-table-wrapper,
+  .orders-table-wrapper,
+  .history-table-wrapper,
+  .virtual-scroll-viewport {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .terminal-table {
+    min-width: 760px;
+  }
+
+  .virtual-archive-container {
+    min-width: 760px;
+  }
+
+  .virtual-table-header,
+  .virtual-order-row {
+    min-width: 860px;
+  }
+
+  .risk-analytics-panel {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .risk-header,
+  .benchmark-grid,
+  .risk-details-row {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .risk-header {
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .risk-header > .flex:last-child {
+    flex-wrap: wrap;
+  }
+
+  .risk-results-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .distribution-card,
+  .vwap-summary-card,
+  .benchmark-compare-card {
+    min-width: 0;
+  }
+
+  .connection-popover,
+  .system-log-drawer {
+    position: fixed;
+    top: 58px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-width: none;
+  }
+
+  .benchmark-modal-backdrop {
+    padding: 8px;
+  }
+
+  .benchmark-modal-content,
+  .shortcuts-modal-content {
+    width: 100%;
+    max-width: none;
+    max-height: calc(100dvh - 16px);
+    margin: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .brand-name {
+    font-size: 0.8125rem;
+  }
+
+  .symbol-base {
+    font-size: 0.875rem;
+  }
+
+  .main-price {
+    font-size: 0.9375rem;
+  }
+
+  .header-left,
+  .header-right {
+    gap: 8px;
+  }
+
+  .book-table-header,
+  .book-row {
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+
+  .book-row {
+    font-size: 0.6875rem;
+  }
+}
